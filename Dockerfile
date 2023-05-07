@@ -19,4 +19,4 @@ COPY ./backend ./
 
 RUN pip install -r requirements.txt
 
-CMD ['waitress-serve --listen=127.0.0.1:5000 app:app']
+CMD ["waitress-serve","--listen=*:5000","app:app"]
