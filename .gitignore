@@ -183,3 +183,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+*.db
+*.sqlite
+*.cache
+tmp
