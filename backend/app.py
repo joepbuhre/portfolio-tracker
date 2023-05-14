@@ -1,5 +1,5 @@
 from re import T
-from typing import Dict, List
+from typing import Dict, List, Mapping
 import pandas as pd
 import json
 from flask import Flask, Response, jsonify, render_template, request
@@ -8,6 +8,10 @@ import os
 import requests
 import yfinance as yf
 from dotenv import load_dotenv
+import sqlalchemy as sa
+import uuid as _uuid; 
+from db_structure.sql_meta import StockMeta
+from werkzeug import Request
 
 load_dotenv()
 
@@ -24,12 +28,44 @@ dataTickers = {}
 
 class StockImporter:
     def __init__(self) -> None:
-        # self.db = sa.create_engine('sqlite:////~/db1.db')
+        self.db = sa.create_engine('sqlite:///./db1.db')
+        self.meta = StockMeta()
+
+        self.meta.meta.create_all(self.db)
+
         pass
+
+    def create_account(self) -> str:
+        newrow = self.users.insert()
+        newrow = newrow.values(ID=str(_uuid.uuid4()))
+
+        with self.db.connect() as conn:
+            res = conn.execute(newrow)
+            conn.commit()
         
-    def getLastQuote(self, ticker: str) -> dict:
-        if ticker in dataTickers:
+        return res.inserted_primary_key
+    
+    def login(self, uuid) -> bool:
+        meta = self.meta
+        findrow = meta.users.select().where(meta.users.c.ID == uuid)
+        with self.db.connect() as conn:
+            res = conn.execute(findrow)
+            try:
+                return type(res.fetchone()[0]) == str
+            except:
+                return False
+        
+    def getLastQuote(self, ticker: str) -> float | None:
+        # Get random number if development mode is on
+        if os.getenv('PYTHON_ENV') == 'development':
+            from random import  SystemRandom
+            return SystemRandom().uniform(50, 150)
+        
+        # Try to return cached data
+        elif ticker in dataTickers:
             return dataTickers[ticker]
+        
+        # Refresh with new (hydrated) data
         else:
             url = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker}&apikey={alphaVantageKey}'
 
@@ -97,7 +133,7 @@ class StockImporter:
         return df2
 
     def handleCsv(self, file) -> pd.DataFrame:
-        
+
         df = pd.read_csv(file)
 
         metadata = {
@@ -154,7 +190,6 @@ class StockImporter:
         df.astype({
             'Cost': 'float'
         })
-        print(df)
 
         df = df.groupby(
             by=['Product', 'Ticker']
@@ -168,6 +203,18 @@ class StockImporter:
 
         return df
 
+    def addShares(self, file) -> bool:
+        df = pd.read_csv(file)
+
+        df2 = df.iloc[:, [0,1,2,4,5,18]]
+
+        print(df2.columns)
+        print(df2)
+        return df2
+
+        # df.to_sql(name='share_history2', if_exists='replace', con=self.db )
+
+        pass
 
 @app.route('/')
 def serveIndex():
@@ -213,3 +260,42 @@ def dataframeGroupBy(groupby: str):
     res = si.groupBy(groupby, df).to_dict(orient='records')
 
     return Response(json.dumps(res), content_type='application/json')
+
+@app.route('/add-shares', methods = ['POST'])
+def add_shares():
+    si = StockImporter()
+    me = StockMeta()
+    me = me.getMeta()
+
+    if si.login(request.headers.get('x-userid')) == False:
+        return Response(None, status=403)
+
+        
+    f = request.files['file']
+    si.addShares(f)
+
+    return Response(json.dumps('hi'), content_type='application/json')
+
+
+@app.route('/create-account', methods=['POST'])
+def create_account():
+    imp = StockImporter()
+    guid = imp.create_account()
+    print(guid[0])
+    return Response(json.dumps({
+        'uuid': guid[0]
+    }), content_type='application/json')
+
+@app.route('/login', methods=['POST'])
+def check_auth():
+    imp = StockImporter()
+    res = imp.login(request.headers.get('x-userid'))
+    if res:
+        return Response(json.dumps({
+            'success': res
+        }), content_type='application/json')
+    else:
+        return Response(json.dumps({
+             'success': res
+        }), status=403 ,content_type='application/json')
+    

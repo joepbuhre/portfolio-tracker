@@ -1,4 +1,29 @@
 <template>
+    <div class="flex fixed inset-0 justify-center items-center bg-black bg-opacity-20 backdrop-blur-sm" v-if="showLogin" @click.self="showLogin = false">
+        <div class="bg-white shadow-lg w-[500px] h-[300px] rounded-md flex justify-center items-center px-10">
+            <div class="w-full">
+                <label for="accountid">Put in your unique accountnumber</label>
+                <div class="flex w-full">
+                    <input 
+                        :type="showAccountId ? 'text' : 'password'"
+                        name="accountid" 
+                        id="accountid"
+                        autocomplete="username"
+                        v-model="accountNumber" 
+                        placeholder="test" 
+                        class="w-full border border-solid border-gray-200 rounded-sm px-2 py-1 rounded-tr-none border-r-0" 
+                        />
+                    <button @click="toggleShowAccountId" class="border-gray-200 border border-solid px-3">
+                        <EyeOffIcon v-if="showAccountId" />
+                        <Eye v-else />
+                    </button>
+                </div>
+
+                <button class="mt-2 bg-blue-600 text-white px-2 py-1 rounded-sm" @click="login">Submit</button>
+                <button class="mt-2 bg-blue-600 text-white px-2 py-1 rounded-sm ml-2" @click="createAccount">Create Account</button>
+            </div>
+        </div>
+    </div>
     <div class="flex">
         <div class="w-1/5">
             <input type="file" v-on:change="handleFile">
@@ -41,6 +66,8 @@
 import { onMounted, ref } from "vue";
 import { api } from "../utils/api";
 import { AxiosResponse } from "axios";
+import { Eye, EyeOffIcon } from 'lucide-vue-next'
+
 
 // Get all group by options
 type groupbyOptions =  'country' | 'industry' | 'sector' | 'currency' | 'quoteType'
@@ -122,6 +149,33 @@ const formatCurrency = (num: number) => {
     })
 
     return formatter.format(num)
+}
+
+// Handle account here
+const accountNumber = ref<string | null>(null);
+const showLogin = ref<boolean>(true);
+const showAccountId = ref<boolean>(false)
+
+const toggleShowAccountId = () => showAccountId.value = !showAccountId.value
+
+const createAccount = () => {
+    api.post('/create-account').then(res => {
+        const data: {uuid: string} = res.data
+        accountNumber.value = data.uuid
+    })
+}
+
+const login = () => {
+    api.post('/login',{}, {
+        headers: {
+            'x-userid': accountNumber.value
+        }
+    }).then(res => {
+        const data: {success: boolean} = res.data
+        showLogin.value = false
+    }).catch(err => {
+        // TODO Error
+    })
 }
 
 </script>

@@ -1,5 +1,6 @@
 serve:
-	waitress-serve --listen=127.0.0.1:5000 app:app
-
+	waitress-serve --listen=*:5000 app:app
+build:
+	docker build ../ -t portfolio-tracker
 dev:
 	flask --app app --debug run
