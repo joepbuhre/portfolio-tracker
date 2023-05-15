@@ -14,6 +14,7 @@ from db_structure.sql_meta import StockMeta
 from werkzeug import Request
 from datetime import datetime
 import psycopg2
+import waitress
 
 load_dotenv()
 
