@@ -1,4 +1,5 @@
 import sqlalchemy as sa
+import os
 
 class StockMeta:
     def __init__(self):
@@ -7,6 +8,7 @@ class StockMeta:
         self.__create_users__()
         self.__create_share_info__()
         self.__create_share_history__()
+        self.__create_shareinfo_user__()
 
         return None
 
@@ -15,19 +17,19 @@ class StockMeta:
 
     def __create_users__(self):
         self.users = sa.Table('users', self.meta,
-            sa.Column('ID', sa.VARCHAR(256), primary_key=True),
+            sa.Column('id', sa.VARCHAR(256), primary_key=True),
         )
         return 
     
     def __create_share_info__(self):
         self.share_info = sa.Table('share_info', self.meta,
                                    sa.Column('id', sa.VARCHAR(256), primary_key=True),
-                                   sa.Column('Datum', sa.DATE),
-                                   sa.Column('Tijd', sa.TIME),
-                                   sa.Column('Product', sa.VARCHAR(256)),
-                                   sa.Column('Beurs', sa.VARCHAR(256)),
-                                   sa.Column('Uitvoeringsplaats', sa.VARCHAR(256)),
-                                   sa.Column('OrderID', sa.VARCHAR(256))
+                                   sa.Column('datum', sa.DATE),
+                                   sa.Column('description', sa.VARCHAR(256)),
+                                   sa.Column('isin', sa.VARCHAR(256)),
+                                   sa.Column('ticker', sa.VARCHAR(256)),
+                                   sa.Column('aantal', sa.Integer),
+                                   sa.Column('user_id', sa.VARCHAR(256)),
                                    )
     
     def __create_share_history__(self):
@@ -36,3 +38,5 @@ class StockMeta:
                                       sa.Column('share_id', sa.VARCHAR(256)),
                                       sa.Column('price', sa.DECIMAL(19,4)) 
                                       )
+    def __create_shareinfo_user__(self):
+        pass

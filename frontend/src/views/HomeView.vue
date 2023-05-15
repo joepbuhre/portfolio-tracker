@@ -21,6 +21,7 @@
 
                 <button class="mt-2 bg-blue-600 text-white px-2 py-1 rounded-sm" @click="login">Submit</button>
                 <button class="mt-2 bg-blue-600 text-white px-2 py-1 rounded-sm ml-2" @click="createAccount">Create Account</button>
+
             </div>
         </div>
     </div>
@@ -29,8 +30,15 @@
             <input type="file" v-on:change="handleFile">
             <div class="flex gap-5 mt-3 mb-10">
                 <button class="bg-slate-200 rounded-md border border-solid border-slate-600 px-4 py-1" @click="populateTables">submit</button>
-                <button class="bg-slate-200 rounded-md border border-solid border-slate-600 px-4 py-1" @click="purge">Purge</button>
+                <button class="bg-slate-200 rounded-md border border-solid border-slate-600 px-4 py-1" @click="fetchStocks">Fetch Stocks</button>
             </div>
+            <button @click="showAccountValues = !showAccountValues" class="flex gap-2">
+                <EyeOffIcon v-if="showAccountValues" />
+                <Eye v-else />
+                <p>
+                    <span v-if="showAccountValues">Hide</span><span v-else>Show</span><span>&nbsp;Account values</span>
+                </p>
+            </button>
             <div v-for="groupby in groupbys">
                 <input type="checkbox" v-model="selectGroupbys" :value="groupby" :id="groupby">
                 <label class="capitalize pl-2" :for="groupby">{{ groupby }}</label>
@@ -39,10 +47,10 @@
         <div class="w-full grid grid-cols-1 gap-3">
             <div v-for="dfType in resp" class="py-2">
                 <h4 class="capitalize font-bold">Groupby: {{ dfType.name }}</h4>
-                <table class="text-left shadow-lg border border-solid border-blue-200 rounded-md border-spacing-0 border-separate">
+                <table class="text-left shadow-lg border border-solid border-blue-200 rounded-md border-spacing-0 border-separate" :class="{hideAccountValues: !showAccountValues}">
                     <thead>
                         <tr class="border-b-slate-800 border-b">
-                            <th v-for="col in Object.keys(dfType.data[0])" class="px-10" >
+                            <th v-for="col in Object.keys(dfType.data[0])" class="px-10 capitalize" >
                                 {{ col }}
                             </th>
                         </tr>
@@ -61,6 +69,15 @@
         </div>
 </div>
 </template>
+
+<style>
+.hideAccountValues th:nth-of-type(2), 
+.hideAccountValues th:nth-of-type(3), 
+.hideAccountValues td:nth-of-type(2), 
+.hideAccountValues td:nth-of-type(3) {
+    display: none;
+}
+</style>
 
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
@@ -88,7 +105,7 @@ const selectGroupbys = ref<groupbyOptions[]>([
 ])
 
 interface GroupDf {
-    Product: string;
+    description: string;
     currentValue: number;
     Aantal: number;
     percentage: number;
@@ -130,6 +147,22 @@ const populateTables = () => {
     }
 }
 
+const fetchStocks = () => {
+    resp.value = [];
+    
+    [...selectGroupbys.value, 'description'].forEach((el) => {
+        console.log(el)
+        api.get(`/stocks/${el}`,{headers: {'x-userid': accountNumber.value}} ).then((res: AxiosResponse) => {
+            resp.value.push({
+                name: el,
+                data: res.data,
+            });
+        });
+    });
+
+}
+
+
 const formatPercentage = (num: number) => {
     const formatter = new Intl.NumberFormat('nl-NL', {
         style: 'percent',
@@ -155,6 +188,8 @@ const formatCurrency = (num: number) => {
 const accountNumber = ref<string | null>(null);
 const showLogin = ref<boolean>(true);
 const showAccountId = ref<boolean>(false)
+const showAccountValues = ref<boolean>(true)
+
 
 const toggleShowAccountId = () => showAccountId.value = !showAccountId.value
 
