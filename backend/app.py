@@ -84,57 +84,12 @@ class StockImporter:
                 return None
 
     def getMetaData(self, list) -> yf.Tickers:
-        metadata = {
-            # Vanguard sp500
-            'IE00B3XXRP09': 'VUSA.AS',
-            # Van Eck Morningstar
-            'NL0011683594': 'TDIV.AS',
-            # Abn Amro
-            'NL0011540547': 'ABN.AS',
-            # ING
-            'NL0011821202': 'INGA.AS',
-            # Prysmian
-            'IT0004176001': 'PRY.MI'
-        }
-
         # Get metadata
-        ticks = ' '.join(metadata.values())
+        ticks = ' '.join(list)
 
         tickers = yf.Tickers(ticks)
 
         return tickers
-
-    def groupBy(self, colname: str, df: pd.DataFrame) -> pd.DataFrame:
-        df2 = df
-        
-        meta = self.getMetaData([''])
-
-        df2 = df2[df2['Aantal'] > 0]
-
-        if colname not in df.columns:
-            def getGrouping(x):
-                try:
-                    return meta.tickers[x].info[colname]
-                except KeyError:
-                    return 'Other'
-            df2[colname] = df2['Ticker'].apply(lambda x: getGrouping(x))
-        
-        # Get unique values
-        df2 = df2.groupby(
-            by=colname
-        ).aggregate({
-            'currentValue': 'sum',
-            'aantal': 'sum'
-        }).reset_index()
-
-        df2['percentage'] =  df2['currentValue'] / sum(df2['currentValue'])
-
-        
-        # Fix rounding
-        df2['currentValue'] = df2['currentValue'].round(4)
-        df2['percentage'] = df2['percentage'].round(4)
-
-        return df2
 
     def handleCsv(self, file) -> pd.DataFrame:
 
@@ -156,7 +111,7 @@ class StockImporter:
         df['Ticker'] = df['ISIN'].apply(lambda x: None if x not in metadata else metadata[x])
         
         meta = self.getMetaData(df['ISIN'].unique())
-
+        print(meta)
         def TickerCurrentPrice(x):
             qte = self.getLastQuote(x)
             if qte == None:
@@ -207,29 +162,17 @@ class StockImporter:
 
         return df
 
-    def get_stocks(self, user_id):
+    def get_stocks(self, user_id = None, df = None):
         
-        with self.db.connect() as conn:
-            rec = self.meta.share_info.select().where(self.meta.share_info.c.user_id == user_id).compile().statement
-            df = pd.read_sql(rec, con=conn)
-        
-        metadata = {
-            # Vanguard sp500
-            'IE00B3XXRP09': 'VUSA.AS',
-            # Van Eck Morningstar
-            'NL0011683594': 'TDIV.AS',
-            # Abn Amro
-            'NL0011540547': 'ABN.AS',
-            # ING
-            'NL0011821202': 'INGA.AS',
-            # Prysmian
-            'IT0004176001': 'PRY.MI'
-        }
+        if user_id != None:
+            with self.db.connect() as conn:
+                rec = self.meta.share_info.select().where(self.meta.share_info.c.user_id == user_id).compile().statement
+                df = pd.read_sql(rec, con=conn)
+        elif df == None:
+            df = pd.DataFrame()
 
-        df['ticker'] = df['isin'].apply(lambda x: None if x not in metadata else metadata[x])
+        meta = self.getMetaData(df['ticker'].unique())
         
-        meta = self.getMetaData(df['isin'].unique())
-
         def TickerCurrentPrice(x):
             qte = self.getLastQuote(x)
             if qte == None:
@@ -281,10 +224,9 @@ class StockImporter:
     def group_by(self, colname: str, df: pd.DataFrame) -> pd.DataFrame:
         df2 = df
         
-        meta = self.getMetaData([''])
-
+        meta = self.getMetaData(df2['ticker'].unique())
+        
         df2 = df2[df2['aantal'] > 0]
-
         if colname not in df.columns:
             def getGrouping(x):
                 try:
@@ -310,7 +252,7 @@ class StockImporter:
 
         return df2
 
-    def addShares(self, file, userid = None) -> bool:
+    def addShares(self, file, userid = None):
         df = pd.read_csv(file)
 
         # Rename spaces
@@ -330,16 +272,14 @@ class StockImporter:
 
         inserts = df2.to_dict(orient='records')
 
-        with self.db.connect() as conn:
-            conn.execute(self.meta.share_info.insert(),
+        if userid != None:
+            with self.db.connect() as conn:
+                conn.execute(self.meta.share_info.insert(),
                          inserts)
-            conn.commit()
-
-        return inserts
-
-        # df.to_sql(name='share_history2', if_exists='replace', con=self.db )
-
-        pass
+                conn.commit()
+            return self.get_stocks(userid)
+        else:
+            return self.get_stocks(None, pd.DataFrame(inserts))
 
 @app.route('/')
 def serveIndex():
@@ -388,6 +328,15 @@ def stocks_groupby(groupby: str):
     res = si.group_by(groupby, df)
 
     return Response(res.to_json(orient='records'), content_type='application/json')
+
+@app.route('/stocks/anonymous/<groupby>', methods = ['POST'])
+def add_shares_anonymous(groupby: str):
+    si = StockImporter()
+
+    f = request.files['file']
+    res = si.addShares(f, None)
+    res = si.group_by(groupby, pd.DataFrame(res))    
+    return Response(JsonEncoder().encode(res), content_type='application/json')
 
 @app.route('/add-shares', methods = ['POST'])
 def add_shares():
