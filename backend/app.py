@@ -15,6 +15,8 @@ from werkzeug import Request
 from datetime import datetime
 import psycopg2
 import waitress
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session
 
 load_dotenv()
 
@@ -33,10 +35,6 @@ class StockImporter:
     def __init__(self) -> None:
         self.db = sa.create_engine(os.environ.get('DB_STRING'))
         self.meta = StockMeta()
-
-        self.meta.meta.create_all(self.db)
-
-        pass
 
     def create_account(self, uuid = str(_uuid.uuid4())) -> str:
         newrow = self.meta.users.insert()
@@ -86,88 +84,38 @@ class StockImporter:
     def getMetaData(self, list) -> yf.Tickers:
         # Get metadata
         ticks = ' '.join(list)
-
         tickers = yf.Tickers(ticks)
 
         return tickers
 
     def handleCsv(self, file) -> pd.DataFrame:
+        '''
+        Returns a dataframe with the columns: date, description, isin, market, order_id, count
+        '''
 
         df = pd.read_csv(file)
 
-        metadata = {
-            # Vanguard sp500
-            'IE00B3XXRP09': 'VUSA.AS',
-            # Van Eck Morningstar
-            'NL0011683594': 'TDIV.AS',
-            # Abn Amro
-            'NL0011540547': 'ABN.AS',
-            # ING
-            'NL0011821202': 'INGA.AS',
-            # Prysmian
-            'IT0004176001': 'PRY.MI'
-        }
-
-        df['Ticker'] = df['ISIN'].apply(lambda x: None if x not in metadata else metadata[x])
-        
-        meta = self.getMetaData(df['ISIN'].unique())
-        print(meta)
-        def TickerCurrentPrice(x):
-            qte = self.getLastQuote(x)
-            if qte == None:
-                try:
-                    tk = meta.tickers[x].get_info()
-                    return tk['currentPrice']
-                except Exception: 
-                    print(x)
-                    return -10
-            else:
-                return qte
-
-        df['Cost'] = df['Transactiekosten en/of'].apply(lambda x: 0 if x == "" else x)
-        df['Koers'] = df['Ticker'].apply(lambda x: float(TickerCurrentPrice(x)))
-        
-        df['totalValue'] = (df['Aantal'] * df['Koers']) + (df['Aantal'] * df['Cost'])
-        df['currentValue'] = df['Koers'] * df['Aantal']
-
-        
-        df = df.loc[:, ['Datum'
-                        # ,'Tijd'
+        df = df.loc[:, [ 'Datum'
                         ,'Product'
-                        # ,'ISIN'
-                        ,'Ticker'
-                        # ,'Beurs'
-                        # ,'Uitvoeringsplaats'
-                        ,'Aantal'
-                        ,'Koers'
-                        ,'Waarde'
-                        ,'Cost'
-                        # ,'Totaal'
-                        # ,'Order ID'
-                        ,'totalValue'
-                        ,'currentValue']]
-        df.astype({
-            'Cost': 'float'
-        })
+                        ,'ISIN'
+                        ,'Beurs'
+                        ,'Order ID'
+                        ,'Aantal' ]]
+        
+        df.columns = [ 'date', 'description', 'isin' ,'market', 'order_id', 'count' ]
 
-        df = df.groupby(
-            by=['Product', 'Ticker']
-        ).aggregate({
-            'totalValue': 'sum',
-            'currentValue': 'sum',
-            'Aantal': 'sum'
-        }).reset_index()
-
-        # df['GAK'] = df['totalValue'] / df['Aantal']
+        self.cleaned_csv = df
 
         return df
 
-    def get_stocks(self, user_id = None, df = None):
+    def get_stocks(self, user_id = None, df = None, by: List | str = ['description', 'ticker']):
         
         if user_id != None:
             with self.db.connect() as conn:
-                rec = self.meta.share_info.select().where(self.meta.share_info.c.user_id == user_id).compile().statement
-                df = pd.read_sql(rec, con=conn)
+                stm = sa.sql.text("select si.*, su.count from share_info si inner join share_user su on si.id = su.share_id and coalesce(si.ticker, '') <> '' and su.user_id = :user_id ")
+                
+                stm = stm.bindparams(user_id=user_id)
+                df = pd.read_sql(stm, con=conn)
         elif df == None:
             df = pd.DataFrame()
 
@@ -185,101 +133,76 @@ class StockImporter:
             else:
                 return qte
 
-        df['Cost'] = 0 #df['Transactiekosten en/of'].apply(lambda x: 0 if x == "" else x)
         df['Koers'] = df['ticker'].apply(lambda x: float(TickerCurrentPrice(x)))
         
-        df['totalValue'] = (df['aantal'] * df['Koers']) + (df['aantal'] * 0)
-        df['currentValue'] = df['Koers'] * df['aantal']
-
+        df['totalValue'] = (df['count'] * df['Koers'])
         
-        df = df.loc[:, ['datum'
-                        # ,'Tijd'
-                        ,'description'
-                        # ,'ISIN'
-                        ,'ticker'
-                        # ,'Beurs'
-                        # ,'Uitvoeringsplaats'
-                        ,'aantal'
-                        ,'Koers'
-                        # ,'Totaal'
-                        # ,'Order ID'
-                        ,'totalValue'
-                        ,'currentValue']]
-        # df.astype({
-        #     'Cost': 'float'
-        # })
+        if type(by) == str: by = [by]
+
+        for it in by:
+            if it not in df.columns:
+                def getGrouping(x):
+                    try:
+                        return meta.tickers[x].info[it]
+                    except KeyError:
+                        return 'Other'
+                df[it] = df['ticker'].apply(lambda x: getGrouping(x))
+
 
         df = df.groupby(
-            by=['description', 'ticker']
+            by=by
         ).aggregate({
             'totalValue': 'sum',
-            'currentValue': 'sum',
-            'aantal': 'sum'
+            'count': 'sum'
         }).reset_index()
 
-        # df['GAK'] = df['totalValue'] / df['Aantal']
+        df['percentage'] =  df['totalValue'] / sum(df['totalValue'])
+        
+        # Fix rounding
+        df['totalValue'] = df['totalValue'].round(4)
+        df['percentage'] = df['percentage'].round(4)
 
         return df
 
-    def group_by(self, colname: str, df: pd.DataFrame) -> pd.DataFrame:
-        df2 = df
+    def add_shares(self, file, userid = None):
+        df = self.handleCsv(file)
+        __share = self.meta.share_info
+
+        df2 = df.loc[:, [ 'isin', 'description', 'market' ]]
         
-        meta = self.getMetaData(df2['ticker'].unique())
+        df2 = df2.drop_duplicates()
         
-        df2 = df2[df2['aantal'] > 0]
-        if colname not in df.columns:
-            def getGrouping(x):
-                try:
-                    return meta.tickers[x].info[colname]
-                except KeyError:
-                    return 'Other'
-            df2[colname] = df2['ticker'].apply(lambda x: getGrouping(x))
+
+        df2.loc[:, 'id'] = [str(_uuid.uuid4()) for _ in range(len(df2.index))]
+
+        with self.db.connect() as conn:
+            for row in df2.to_dict(orient='records'):
+                stmt = insert(__share).values(row)
+                stmt = stmt.on_conflict_do_nothing(
+                    index_elements=['isin', 'market']
+                )
+                conn.execute(stmt)
+            conn.commit()
         
-        # Get unique values
-        df2 = df2.groupby(
-            by=colname
-        ).aggregate({
-            'currentValue': 'sum',
-            'aantal': 'sum'
-        }).reset_index()
-
-        df2['percentage'] =  df2['currentValue'] / sum(df2['currentValue'])
-
+            sel = __share.select().where(__share.c.isin.in_(df['isin'])).where(__share.c.market.in_(df['market']))
+            res = conn.execute(sel).fetchall()
         
-        # Fix rounding
-        df2['currentValue'] = df2['currentValue'].round(4)
-        df2['percentage'] = df2['percentage'].round(4)
-
-        return df2
-
-    def addShares(self, file, userid = None):
-        df = pd.read_csv(file)
-
-        # Rename spaces
-        df.columns = df.columns.str.replace(' ', '_')
-        df.columns = df.columns.str.lower()
-
-        # Fix Date column
-        df.iloc[:, 0] = df.iloc[:, 0].apply(lambda x: datetime.strptime(x, '%d-%m-%Y'))
-        
-        df2 = df.iloc[:, [0,2,3,6]]
-
-        df2.loc[:, 'id'] = [str(_uuid.uuid4()) for _ in range(len(df.index))]
-        df2.loc[:, 'ticker'] = None
-        df2.loc[:, 'user_id'] = userid
-
-        df2.columns = ['datum', 'description', 'isin', 'aantal', 'id', 'ticker', 'user_id']
-
-        inserts = df2.to_dict(orient='records')
-
-        if userid != None:
-            with self.db.connect() as conn:
-                conn.execute(self.meta.share_info.insert(),
-                         inserts)
+            if userid != None:
+                df3 = pd.merge(df, pd.DataFrame(res), how='left', left_on=['isin', 'market'], right_on=['isin', 'market'])
+                df3['share_id'] = df3['id']
+                df3['user_id'] = userid
+                df3.loc[:, 'id'] = [str(_uuid.uuid4()) for _ in range(len(df3.index))]
+                df3 = df3.loc[:, [ 'id', 'share_id', 'order_id', 'user_id', 'count' ]]
+                
+                for row in df3.to_dict(orient='records'):
+                    stmt = insert(self.meta.share_user).values(row)
+                    stmt = stmt.on_conflict_do_nothing(
+                        index_elements=['order_id']
+                    )
+                    conn.execute(stmt)
                 conn.commit()
-            return self.get_stocks(userid)
-        else:
-            return self.get_stocks(None, pd.DataFrame(inserts))
+
+        return res
 
 @app.route('/')
 def serveIndex():
@@ -322,11 +245,16 @@ def dataframeGroupBy(groupby: str):
     return Response(json.dumps(res), content_type='application/json')
 
 @app.route('/stocks/<groupby>', methods = ['GET'])
-def stocks_groupby(groupby: str):
+@app.route('/stocks', methods = ['GET'])
+def stocks_groupby(groupby: str = None):
     si = StockImporter()
-    df = si.get_stocks(request.headers.get('x-userid'))
-    res = si.group_by(groupby, df)
-
+    
+    if groupby == None:
+        groupby = ['description', 'ticker']
+    
+    df = si.get_stocks(request.headers.get('x-userid'), by=groupby)
+    
+    res = df
     return Response(res.to_json(orient='records'), content_type='application/json')
 
 @app.route('/stocks/anonymous/<groupby>', methods = ['POST'])
@@ -349,7 +277,7 @@ def add_shares():
 
         
     f = request.files['file']
-    res = si.addShares(f, request.headers.get('x-userid'))
+    res = si.add_shares(f, request.headers.get('x-userid'))
     return Response(JsonEncoder().encode(res), content_type='application/json')
 
 
@@ -374,11 +302,26 @@ def check_auth():
         return Response(json.dumps({
              'success': res
         }), status=403 ,content_type='application/json')
-    
+
+@app.route('/import-csv', methods=['POST'])    
+def import_csv():
+    si = StockImporter()
+    f = request.files['file']
+    res = si.handleCsv(f)
+
+    return Response(res.to_json(), content_type='application/json')
+
 
 # Run this on startup
 def init():
     si = StockImporter()
+    si.meta.meta.create_all(si.db)
+    with si.db.connect() as conn:
+        conn.execute(sa.sql.text(si.meta.manual_scripts()))
+        conn.commit()
+    
+    
     si.create_account(os.environ.get('OWNER_GUID'))
+
     
 init()
