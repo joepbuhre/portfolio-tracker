@@ -50,7 +50,7 @@ class StockMeta:
                                       sa.Column('id', sa.VARCHAR(256), primary_key=True),
                                       sa.Column('share_id', sa.VARCHAR(256)),
                                       sa.Column('price', sa.DECIMAL(19,4)),
-                                      sa.Column('user_id', sa.VARCHAR(256)),
+                                      sa.Column('date', sa.DateTime),
                                       )
     def __create_share__(self):
         self.share = sa.Table('share', self.meta,
