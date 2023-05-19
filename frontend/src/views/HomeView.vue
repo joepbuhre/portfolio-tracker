@@ -93,6 +93,7 @@ import { computed, onMounted, ref } from "vue";
 import { api } from "../utils/api";
 import { AxiosResponse } from "axios";
 import { Eye, EyeOffIcon, LogOut, X } from 'lucide-vue-next'
+import { useMain } from "../store/main";
 
 
 // Get all group by options
@@ -114,6 +115,9 @@ const selectGroupbys = ref<groupbyOptions[]>([
     ,'country'
     ,'currency'
 ])
+
+// Store setup
+const main = useMain()
 
 interface GroupDf {
     description: string;
@@ -216,7 +220,7 @@ const showAccountId = ref<boolean>(false)
 const showAccountValues = ref<boolean>(true)
 
 onMounted(() => {
-    const userid = localStorage.getItem('x-userid')
+    const userid = main.getUserId
     if(userid) {
         accountNumber.value = userid
         login()
@@ -240,7 +244,8 @@ const login = () => {
     }).then(res => {
         const data: {success: boolean} = res.data
         showLogin.value = false
-        localStorage.setItem('x-userid', <string>accountNumber.value)
+        main.setUserId(<string>accountNumber.value)
+        fetchStocks()
     }).catch(err => {
         // TODO Error
     })
@@ -250,7 +255,7 @@ const logout = () => {
     showLogin.value = true
     accountNumber.value = null
     resp.value = []
-    localStorage.removeItem('x-userid')
+    main.setUserId(null)
 }
 
 </script>

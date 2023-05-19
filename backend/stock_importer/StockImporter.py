@@ -77,19 +77,7 @@ class StockImporter:
 
         meta = self.getMetaData(df['ticker'].unique())
         
-        def TickerCurrentPrice(x):
-            qte = self.get_saved_quote(x)
-            if qte == None:
-                try:
-                    tk = meta.tickers[x].get_info()
-                    return tk['currentPrice']
-                except Exception: 
-                    print(x)
-                    return -10
-            else:
-                return qte
-
-        df['Koers'] = df['ticker'].apply(lambda x: float(TickerCurrentPrice(x)))
+        df['Koers'] = df['ticker'].apply(lambda x: float(self.get_saved_quote(x)))
         
         df['totalValue'] = (df['count'] * df['Koers'])
         
@@ -117,6 +105,9 @@ class StockImporter:
         # Fix rounding
         df['totalValue'] = df['totalValue'].round(4)
         df['percentage'] = df['percentage'].round(4)
+
+        # Remove unneeded rows
+        df = df[df['count'] > 0]
 
         return df
 
@@ -162,57 +153,89 @@ class StockImporter:
         
     def get_saved_quote(self, ticker: str) -> float | None:
         # We're gonna look into the database and fetch the last record
-        stmt = sa.sql.text("""select sh.share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
-                                from share_history sh
-                                left join share_info si on si.id = sh.share_id
-                                where ticker = :ticker""")
-        stmt.bindparams(ticker=ticker)
-        
+        stmt = sa.sql.text("""select price
+                                from (
+                                    select sh.share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
+                                    from share_history sh
+                                    left join share_info si on si.id = sh.share_id
+                                ) t
+                                where t.max = t.date and ticker = :ticker""")
+        stmt = stmt.bindparams(ticker=ticker)
+
         with self.db.connect() as conn:
-            res = conn.execute(stmt).fetchall()
-        return pd.DataFrame(res)
-            
+            res = conn.execute(stmt).fetchone()
+        return res[0]
 
     def get_last_quote(self, ticker):
         '''
         Get Quote data. If dev mode is on it will return a random number
         '''
+        price = None
         # Get random number if development mode is on
         if os.getenv('PYTHON_ENV') == 'development':
             from random import  SystemRandom
-            return round(SystemRandom().uniform(50, 150), 4)
+            price = round(SystemRandom().uniform(50, 150), 4)
         
         # Refresh with new (hydrated) data
         else:
-            url = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker}&apikey={alphaVantageKey}'
+            key = os.getenv('alphaVantageKey')
+            url = f'https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={ticker}&apikey={key}'
 
             r = requests.get(url)
             data = r.json()
-
+    	
             try:
-                return data['Global Quote']['05. price']
+                price = float(data['Global Quote']['05. price'])
             except Exception as e:
                 print(e)
-                return None
+                price = None
+        
+        if price == None:
+            tick = yf.Ticker(ticker)
+            try:
+                price = float(tick.get_info()['currentPrice'])
+            except Exception as e: 
+                print(e)
+                price = None
+        
+        return price
 
-    def get_prices(self):
-        share_info = self.meta.share_info
+    def set_prices(self):
         share_history = self.meta.share_history
         with Session(self.db) as sess:
-            stm = sa.sql.select(share_info.c.id, share_info.c.ticker)
+            stm = sa.sql.text("""select *
+                                    from (
+                                        select sh.share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
+                                        from share_history sh
+                                        left join share_info si on si.id = sh.share_id
+                                    ) t
+                                    where max = date
+                                    order by date asc
+                                    limit 4""")
+            
             res = sess.execute(stm).fetchall()
         
             df = pd.DataFrame(res)
             df['price'] = df['ticker'].apply(lambda x: self.get_last_quote(x))
             df['date'] = datetime.now()
-            df['share_id'] = df['id']
             df['id'] = [str(uuid4()) for _ in range(len(df.index))]
 
-            df = df.loc[:, ['id', 'share_id', 'price', 'date']]
+            df = df.dropna()
+            if df.empty == False:
+                df2 = df.loc[:, ['id', 'share_id', 'price', 'date']]
+                sess.execute(share_history.insert().values(df2.to_dict(orient='records')))
+                sess.commit()
+            
 
-            sess.execute(share_history.insert().values(df.to_dict(orient='records')))
-            sess.commit()
+        return df.to_dict(orient='records')
 
+    def get_history(self, tickers: List):
+        sel = self.meta.share_history.select().limit(50).where(self.meta.share_history.c.share_id.in_(
+            sa.sql.select(self.meta.share_info.c.id).
+            where(self.meta.share_info.c.ticker.in_(tickers))
+        ))
 
-        return 
-
+        with self.db.connect() as conn:
+            res = conn.execute(sel).fetchall()
+        
+        return pd.DataFrame(res).to_json(orient='records')

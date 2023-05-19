@@ -70,9 +70,18 @@ def stocks_groupby(groupby: str = None):
         groupby = ['description', 'ticker']
     
     df = si.get_stocks(request.headers.get('x-userid'), by=groupby)
-    
+
     res = df
     return Response(res.to_json(orient='records'), content_type='application/json')
+
+@app.route('/history', methods = ['GET'])
+def get_history():
+    tickers = request.args.getlist('ticker')
+    tickers.extend(i for i in request.args.getlist('ticker[]') if i not in tickers)
+
+    si = StockImporter()
+    hist = si.get_history(tickers)
+    return Response(hist, content_type='application/json')
 
 @app.route('/stocks/anonymous/<groupby>', methods = ['POST'])
 def add_shares_anonymous(groupby: str):
@@ -128,11 +137,16 @@ def import_csv():
 
     return Response(res.to_json(), content_type='application/json')
 
-@app.route('/fetch-stock-information', methods=['POST'])
-def fetch_stock_information():
+# Allow routes only when user is ownerguid
+@app.route('/update-stock-prices', methods=['POST'])
+def update_stock_prices():
+    if(request.headers.get('x-userid') != os.getenv('OWNER_GUID')):
+        return Response('Not allowed', status=403)
+    
     si = StockImporter()
-    si.get_prices()
-    return Response('OK')
+    res = si.set_prices()
+    return Response(JsonEncoder().encode(res), content_type='application/json')
+
 
 # Run this on startup
 def init():
