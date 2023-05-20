@@ -229,13 +229,32 @@ class StockImporter:
 
         return df.to_dict(orient='records')
 
-    def get_history(self, tickers: List):
-        sel = self.meta.share_history.select().limit(50).where(self.meta.share_history.c.share_id.in_(
-            sa.sql.select(self.meta.share_info.c.id).
-            where(self.meta.share_info.c.ticker.in_(tickers))
-        ))
+    def get_history(self, tickers: List = None, userid: str = None):
+        if userid != None:
+            sel = sa.sql.text("""select *, ROUND(CASE WHEN COALESCE(prev_price, 0) = 0 THEN 0 ELSE price / prev_price -1 END, 4) AS growth from (
+                                    select sh.id, sh.share_id, sh.price, sh.date, si.ticker, lag(sh.price) over (partition by sh.share_id order by sh.date asc) prev_price
+                                    from share_history sh
+                                    left join share_info si on sh.share_id = si.id
+                                    where share_id 
+                                        in ( select share_id from share_user where user_id = :userid ) 
+                                        and si.ticker is not null
+                                        and sh.price is not null
+                                ) t """)
+            sel = sel.bindparams(userid=userid)
+
+        else :
+            sel = sa.sql.text("""select sh.id, sh.share_id, sh.price, sh.date, si.ticker
+                                from share_history sh
+                                left join share_info si on sh.share_id = si.id
+                                where ticker in :tickers""")
+            sel = sel.bindparams(tickers=tuple(tickers))
+            
 
         with self.db.connect() as conn:
             res = conn.execute(sel).fetchall()
-        
-        return pd.DataFrame(res).to_json(orient='records')
+        df = pd.DataFrame(res)
+        tickdic = {}
+        for ticker in df['ticker'].unique():
+            tickdic[ticker] = df[df['ticker'] == ticker].to_dict(orient='records')
+                    
+        return tickdic

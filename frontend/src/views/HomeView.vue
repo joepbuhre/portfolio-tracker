@@ -3,43 +3,19 @@
         <LogOut />
         Logout
     </button>
-    <div class="flex fixed inset-0 justify-center items-center bg-black bg-opacity-20 backdrop-blur-sm" v-if="showLogin" @click.self="showLogin = false">
-        <div class="bg-white shadow-lg w-[500px] h-[300px] rounded-md flex justify-center items-center px-10 relative">
-            <button class="absolute top-2 right-2" @click="showLogin = false">
-                <X />
-            </button>
-            <div class="w-full">
-                <form @submit.prevent="login">
-                    <label for="accountid">Put in your unique accountnumber</label>
-                    <div class="flex w-full">
-                        <input 
-                            :type="showAccountId ? 'text' : 'password'"
-                            name="accountid" 
-                            id="accountid"
-                            autocomplete="username"
-                            v-model="accountNumber" 
-                            placeholder="test" 
-                            class="w-full border border-solid border-gray-200 rounded-sm px-2 py-1 rounded-tr-none border-r-0" 
-                            />
-                        <button @click="toggleShowAccountId" class="border-gray-200 border border-solid px-3">
-                            <EyeOffIcon v-if="showAccountId" />
-                            <Eye v-else />
-                        </button>
-                    </div>
-
-                    <button class="mt-2 bg-blue-600 text-white px-2 py-1 rounded-sm" @click="login" type="submit">Submit</button>
-                    <button class="mt-2 bg-blue-600 text-white px-2 py-1 rounded-sm ml-2" @click="createAccount">Create Account</button>
-
-                </form>
-            </div>
-        </div>
-    </div>
+    <TheLoginModel v-if="showLogin" @success="loginSuccess" class="z-50" />
     <div class="flex">
         <div class="w-1/5">
-            <h3 class="text-sm text-gray-700">User: {{ accountNumber }}</h3>
+            <h2 class="text-blue-700 font-bold text-lg flex gap-3">Welcome 
+                <span>
+                    <Loader2 v-if="main.isLoading" class="animate-spin" />
+                    <LineChart v-else />
+                </span>
+            </h2>
             <input type="file" v-on:change="handleFile">
             <div class="flex gap-5 mt-3 mb-10">
-                <button class="bg-slate-200 rounded-md border border-solid border-slate-600 px-4 py-1" @click="fetchStocks">Fetch Stocks</button>
+                <button class="bg-blue-700 hover:bg-opacity-80 duration-200 text-white rounded-md border border-solid border-slate-600 px-2 py-1" @click="fetchStocks">Fetch Stocks</button>
+                <button class="bg-blue-700 hover:bg-opacity-80 duration-200 text-white rounded-md border border-solid border-slate-600 px-2 py-1" @click="fetchHistory">Fetch History</button>
             </div>
             <button @click="showAccountValues = !showAccountValues" class="flex gap-2">
                 <EyeOffIcon v-if="showAccountValues" />
@@ -54,6 +30,9 @@
             </div>
         </div>
         <div class="w-full grid grid-cols-1 gap-3">
+            <div class="h-96 rounded-md" :class="{'animate-pulse bg-slate-300 ': Object.keys(history).length === 0}" >
+                <GraphLine :history="history" v-if="Object.keys(history).length > 0" />
+            </div>
             <div v-for="dfType in respSorted" class="py-2">
                 <h4 class="capitalize font-bold">Groupby: {{ dfType.name }}</h4>
                 <table class="text-left shadow-lg border border-solid border-blue-200 rounded-md border-spacing-0 border-separate" :class="{hideAccountValues: !showAccountValues}">
@@ -65,7 +44,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="row in dfType.data" class="hover:bg-slate-200">
+                        <tr v-for="row in dfType.data" class="hover:bg-slate-200" @mouseover="highLightSeries(row?.ticker?.replace('.', 'x'))" @mouseleave="unHighLightSeries(row?.ticker?.replace('.', 'x'))">
                             <td v-for="(col, colname) in row" class="px-10" >
                                 <span v-if="colname === 'percentage'">{{ formatPercentage(<number>col) }}</span>
                                 <span v-else-if="colname === 'totalValue'">{{ formatCurrency(<number>col) }}</span>
@@ -92,15 +71,20 @@
 import { computed, onMounted, ref } from "vue";
 import { api } from "../utils/api";
 import { AxiosResponse } from "axios";
-import { Eye, EyeOffIcon, LogOut, X } from 'lucide-vue-next'
+import {LogOut, X } from 'lucide-vue-next'
 import { useMain } from "../store/main";
-
+import { LineChart } from "lucide-vue-next";
+import { Loader2 } from "lucide-vue-next";
+import TheLoginModel from "../components/TheLoginModel.vue";
+import GraphLine from "../components/GraphLine.vue";
+import type {TickerHistory} from '../components/GraphLine.vue'
+import { Eye, EyeOffIcon } from "lucide-vue-next";
 
 // Get all group by options
-type groupbyOptions = 'description' | 'country' | 'industry' | 'sector' | 'currency' | 'quoteType'
+type groupbyOptions = 'ticker-description' | 'description' | 'country' | 'industry' | 'sector' | 'currency' | 'quoteType'
 
 const groupbys = ref<{name: string, value: groupbyOptions}[]>([
-     {'name': 'Product', value: 'description'}
+     {'name': 'Product', value: 'ticker-description'}
     ,{'name': 'Industry', value: 'industry'}
     ,{'name': 'Sector', value: 'sector'}
     ,{'name': 'Product Type', value: 'quoteType'}
@@ -108,7 +92,7 @@ const groupbys = ref<{name: string, value: groupbyOptions}[]>([
     ,{'name': 'Currency', value: 'currency'}
 ])
 const selectGroupbys = ref<groupbyOptions[]>([
-     'description'
+     'ticker-description'
     ,'industry'
     ,'sector'
     ,'quoteType'
@@ -120,6 +104,7 @@ const selectGroupbys = ref<groupbyOptions[]>([
 const main = useMain()
 
 interface GroupDf {
+    ticker?: string,
     description: string;
     totalValue: number;
     count: number;
@@ -150,9 +135,7 @@ const handleFile = (e: Event) => {
 const file = ref<File | null>(null)
 const fileValue = ref<string>('')
 
-const purge = () => {
-    api.post('/purge').then(res => alert(res.data))
-}
+const showAccountValues = ref<boolean>(true)
 
 const populateTables = () => {
     resp.value = [];
@@ -160,7 +143,7 @@ const populateTables = () => {
     if(file.value !== null) {      
         const formdata = new FormData()
         formdata.append('file', <File>file.value)
-        if(accountNumber.value !== null) {
+        if(main.getUserId !== null) {
             api.post(`/add-shares`, formdata).then((res: AxiosResponse) => {
                 fetchStocks()
             });
@@ -180,15 +163,20 @@ const populateTables = () => {
 const fetchStocks = () => {
     resp.value = [];
     
-    [...selectGroupbys.value].forEach((el) => {
-        console.log(el)
-        api.get(`/stocks/${el}`,{headers: {'x-userid': accountNumber.value}} ).then((res: AxiosResponse) => {
-            resp.value.push({
-                name: el,
-                data: res.data,
-            });
-        });
-    });
+    main.setLoading(true, 'fetchStocks')
+    Promise.allSettled(
+        [...selectGroupbys.value].map((el) => {
+            return new Promise((resolve, reject) => {
+                api.get(`/stocks/${el}`,{headers: {'x-userid': main.getUserId}} ).then((res: AxiosResponse) => {
+                    resp.value.push({
+                        name: el,
+                        data: res.data,
+                    });
+                    resolve(true)
+                }).catch(reject)
+            })
+        })
+    ).finally(() => main.setLoading(false, 'fetchStocks'))
 
 }
 
@@ -213,49 +201,43 @@ const formatCurrency = (num: number) => {
     return formatter.format(num)
 }
 
-// Handle account here
-const accountNumber = ref<string | null>(null);
 const showLogin = ref<boolean>(true);
-const showAccountId = ref<boolean>(false)
-const showAccountValues = ref<boolean>(true)
 
-onMounted(() => {
-    const userid = main.getUserId
-    if(userid) {
-        accountNumber.value = userid
-        login()
-    }
-})
-
-const toggleShowAccountId = () => showAccountId.value = !showAccountId.value
-
-const createAccount = () => {
-    api.post('/create-account').then(res => {
-        const data: {uuid: string} = res.data
-        accountNumber.value = data.uuid
-    })
-}
-
-const login = () => {
-    api.post('/login',{}, {
-        headers: {
-            'x-userid': accountNumber.value
-        }
-    }).then(res => {
-        const data: {success: boolean} = res.data
-        showLogin.value = false
-        main.setUserId(<string>accountNumber.value)
-        fetchStocks()
-    }).catch(err => {
-        // TODO Error
-    })
+const loginSuccess = () => {
+    showLogin.value = false 
+    fetchStocks()
+    fetchHistory()
 }
 
 const logout = () => {
     showLogin.value = true
-    accountNumber.value = null
     resp.value = []
     main.setUserId(null)
+}
+
+// Setup history graph here
+const tickers = computed(() => null)
+const history = ref<{[key: string]: TickerHistory[]}>({})
+const fetchHistory = () => {
+    api.get('/history').then(res => {
+        const data = res.data
+        history.value = <{[key: string]: TickerHistory[]}>data
+    })
+}
+
+// Hightlight functions
+const highLightSeries = (seriesName: string | undefined) => {   
+    if(seriesName !== undefined) {
+        const nonTargets = document.querySelectorAll(`.apexcharts-area-series.apexcharts-plot-series .apexcharts-series:not([seriesName=${seriesName}])`)
+        Array.from(nonTargets).forEach(node => node.classList.add('legend-mouseover-inactive'))
+    } 
+}
+
+const unHighLightSeries = (seriesName: string | undefined) => {
+    if(seriesName !== undefined) {
+        const nonTargets = document.querySelectorAll(`.apexcharts-area-series.apexcharts-plot-series .apexcharts-series.legend-mouseover-inactive`)
+        Array.from(nonTargets).forEach(node => node.classList.remove('legend-mouseover-inactive'))
+    } 
 }
 
 </script>

@@ -68,6 +68,8 @@ def stocks_groupby(groupby: str = None):
     
     if groupby == None:
         groupby = ['description', 'ticker']
+    else:
+        groupby = groupby.split('-')
     
     df = si.get_stocks(request.headers.get('x-userid'), by=groupby)
 
@@ -76,12 +78,24 @@ def stocks_groupby(groupby: str = None):
 
 @app.route('/history', methods = ['GET'])
 def get_history():
+    si = StockImporter()
     tickers = request.args.getlist('ticker')
     tickers.extend(i for i in request.args.getlist('ticker[]') if i not in tickers)
 
-    si = StockImporter()
-    hist = si.get_history(tickers)
-    return Response(hist, content_type='application/json')
+    userid = request.headers.get('x-userid')
+
+    if len(tickers) == 0 and userid == None:
+        return Response(json.dumps({'error': 'Userid and / or tickers in query params missing'}), status=400, content_type='application/json')
+    elif len(tickers) == 0 and si.login(userid) == True:
+        hist = si.get_history(userid=userid)
+    elif len(tickers) > 0:
+        hist = si.get_history(tickers)
+    else:
+        return Response(json.dumps({'error': 'Unhandled error. Please check your request'}), status=400, content_type='application/json')
+        
+
+
+    return Response(JsonEncoder().encode(hist), content_type='application/json')
 
 @app.route('/stocks/anonymous/<groupby>', methods = ['POST'])
 def add_shares_anonymous(groupby: str):
