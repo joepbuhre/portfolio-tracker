@@ -205,11 +205,11 @@ class StockImporter:
         with Session(self.db) as sess:
             stm = sa.sql.text("""select *
                                     from (
-                                        select sh.share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
-                                        from share_history sh
-                                        left join share_info si on si.id = sh.share_id
+                                        select si.id as share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
+                                        from share_info si
+                                        left join share_history sh on si.id = sh.share_id
                                     ) t
-                                    where max = date
+                                    where coalesce(date, now()) = coalesce(date, now())
                                     order by date asc
                                     limit 4""")
             
