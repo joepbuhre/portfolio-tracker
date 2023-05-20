@@ -205,7 +205,7 @@ class StockImporter:
         with Session(self.db) as sess:
             stm = sa.sql.text("""select *
                                     from (
-                                        select si.id as share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
+                                        select si.id as share_id, sh.price, sh.date, si.ticker, min(date) over(partition by ticker)
                                         from share_info si
                                         left join share_history sh on si.id = sh.share_id
                                     ) t
@@ -225,6 +225,8 @@ class StockImporter:
                 df2 = df.loc[:, ['id', 'share_id', 'price', 'date']]
                 sess.execute(share_history.insert().values(df2.to_dict(orient='records')))
                 sess.commit()
+            else:
+                print('df is empty')
             
 
         return df.to_dict(orient='records')
