@@ -8,8 +8,8 @@ class StockMeta:
         self.__create_users__()
         self.__create_share_info__()
         self.__create_share_history__()
-        self.__create_share__()
         self.__create_share_user__()
+        self.__create_config__()
 
         return None
 
@@ -52,11 +52,8 @@ class StockMeta:
                                       sa.Column('price', sa.DECIMAL(19,4)),
                                       sa.Column('date', sa.DateTime),
                                       )
-    def __create_share__(self):
-        self.share = sa.Table('share', self.meta,
-                              sa.Column('id', sa.VARCHAR(256), primary_key=True),
-                              sa.Column('isin', sa.VARCHAR(256), nullable=False),
-                              sa.Column('order_id', sa.VARCHAR(256)),
-                              sa.Column('stock_market', sa.VARCHAR(256)),
-                              sa.Column('user_id', sa.VARCHAR(256), nullable=False),
-                              )
+    def __create_config__(self):
+        self.config = sa.Table('config', self.meta,
+                               sa.Column('key', sa.VARCHAR(256), primary_key=True),
+                               sa.Column('value', sa.VARCHAR(None)),
+                               )

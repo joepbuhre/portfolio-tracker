@@ -8,6 +8,11 @@ const router = createRouter({
             path: "/",
             component: HomeView,
         },
+        {
+            name: "Match Tickers",
+            path: "/match-tickers",
+            component: () => import('../views/MatchTickerView.vue')
+        }
     ],
     history: createWebHashHistory(),
 });

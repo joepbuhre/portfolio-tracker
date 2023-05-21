@@ -14,8 +14,8 @@
             </h2>
             <input type="file" v-on:change="handleFile">
             <div class="flex gap-5 mt-3 mb-10">
+                <button class="bg-blue-700 hover:bg-opacity-80 duration-200 text-white rounded-md border border-solid border-slate-600 px-2 py-1" @click="populateTables">Upload Stocks</button>
                 <button class="bg-blue-700 hover:bg-opacity-80 duration-200 text-white rounded-md border border-solid border-slate-600 px-2 py-1" @click="fetchStocks">Fetch Stocks</button>
-                <button class="bg-blue-700 hover:bg-opacity-80 duration-200 text-white rounded-md border border-solid border-slate-600 px-2 py-1" @click="fetchHistory">Fetch History</button>
             </div>
             <button @click="showAccountValues = !showAccountValues" class="flex gap-2">
                 <EyeOffIcon v-if="showAccountValues" />
@@ -29,13 +29,14 @@
                 <label class="capitalize pl-2" :for="groupby.value">{{ groupby.name }}</label>
             </div>
         </div>
-        <div class="w-full grid grid-cols-1 gap-3">
-            <div class="h-96 rounded-md" :class="{'animate-pulse bg-slate-300 ': Object.keys(history).length === 0}" >
+        <div class="w-full grid grid-cols-1 gap-3" v-if="hasData">
+            <div class="h-96 rounded-md" :class="{'animate-pulse bg-slate-300 ': main.isLoading}" v-if="hasHistory" >
                 <GraphLine :history="history" v-if="Object.keys(history).length > 0" />
             </div>
             <div v-for="dfType in respSorted" class="py-2">
                 <h4 class="capitalize font-bold">Groupby: {{ dfType.name }}</h4>
-                <table class="text-left shadow-lg border border-solid border-blue-200 rounded-md border-spacing-0 border-separate" :class="{hideAccountValues: !showAccountValues}">
+                <p v-if="dfType.data.length === 0">Sorry no data has been found</p>
+                <table v-if="dfType.data.length > 0" class="text-left shadow-lg border border-solid border-blue-200 rounded-md border-spacing-0 border-separate" :class="{hideAccountValues: !showAccountValues}">
                     <thead>
                         <tr class="border-b-slate-800 border-b">
                             <th v-for="col in Object.keys(dfType.data[0])" class="px-10 capitalize" >
@@ -54,6 +55,9 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+        <div v-else>
+            <p>Welcome, please upload a file or login to fetch your stocks</p>
         </div>
 </div>
 </template>
@@ -129,7 +133,6 @@ const handleFile = (e: Event) => {
     const target = e.target as HTMLInputElement
     if (target?.files?.length && target?.files?.length > 0) {
         file.value = target.files[0]
-        populateTables()
     }
 }
 const file = ref<File | null>(null)
@@ -165,17 +168,26 @@ const fetchStocks = () => {
     
     main.setLoading(true, 'fetchStocks')
     Promise.allSettled(
-        [...selectGroupbys.value].map((el) => {
-            return new Promise((resolve, reject) => {
-                api.get(`/stocks/${el}`,{headers: {'x-userid': main.getUserId}} ).then((res: AxiosResponse) => {
-                    resp.value.push({
-                        name: el,
-                        data: res.data,
-                    });
+        [
+            ...[...selectGroupbys.value].map((el) => {
+                return new Promise((resolve, reject) => {
+                    api.get(`/stocks/${el}`,{headers: {'x-userid': main.getUserId}} ).then((res: AxiosResponse) => {
+                        resp.value.push({
+                            name: el,
+                            data: res.data,
+                        });
+                        resolve(true)
+                    }).catch(reject)
+                })
+            }),
+            new Promise((resolve, reject) => {
+                api.get('/history').then(res => {
+                    const data = res.data
+                    history.value = <{[key: string]: TickerHistory[]}>data
                     resolve(true)
                 }).catch(reject)
             })
-        })
+        ]
     ).finally(() => main.setLoading(false, 'fetchStocks'))
 
 }
@@ -239,5 +251,14 @@ const unHighLightSeries = (seriesName: string | undefined) => {
         Array.from(nonTargets).forEach(node => node.classList.remove('legend-mouseover-inactive'))
     } 
 }
+
+// Does data exist
+const hasData = computed(() => {
+    return resp.value.length > 0
+})
+
+const hasHistory = computed(() => {
+    return Object.keys(history.value).length > 0
+})
 
 </script>

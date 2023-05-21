@@ -41,7 +41,7 @@ class StockImporter:
         # Get metadata
         ticks = ' '.join(list)
         tickers = yf.Tickers(ticks)
-
+        print('still working')
         return tickers
 
     def handleCsv(self, file) -> pd.DataFrame:
@@ -64,6 +64,13 @@ class StockImporter:
 
         return df
 
+    def get_share_info(self, user_id = None, df = None, by: List | str = ['description', 'ticker']):
+        with self.db.connect() as conn:
+            stmt = self.meta.share_info.select()
+            res = conn.execute(stmt).fetchall()
+        
+        return pd.DataFrame(res).to_dict(orient='records')
+
     def get_stocks(self, user_id = None, df = None, by: List | str = ['description', 'ticker']):
         
         if user_id != None:
@@ -72,6 +79,7 @@ class StockImporter:
                 
                 stm = stm.bindparams(user_id=user_id)
                 df = pd.read_sql(stm, con=conn)
+                print(df)
         elif df == None:
             df = pd.DataFrame()
 
@@ -150,7 +158,15 @@ class StockImporter:
                 conn.commit()
 
         return res
-        
+
+    def match_ticker(self, shareid_ticker: list[dict]):
+        shares = self.meta.share_info
+        with self.db.connect() as conn:
+            for row in shareid_ticker:
+                stmt = shares.update().where(shares.c.id == row['share_id']).values(ticker=row['ticker'])            
+                conn.execute(stmt)
+            conn.commit()
+
     def get_saved_quote(self, ticker: str) -> float | None:
         # We're gonna look into the database and fetch the last record
         stmt = sa.sql.text("""select price
@@ -164,7 +180,10 @@ class StockImporter:
 
         with self.db.connect() as conn:
             res = conn.execute(stmt).fetchone()
-        return res[0]
+        if res == None:
+            return 0
+        else:
+            return res[0]
 
     def get_last_quote(self, ticker):
         '''
@@ -203,14 +222,11 @@ class StockImporter:
     def set_prices(self):
         share_history = self.meta.share_history
         with Session(self.db) as sess:
-            stm = sa.sql.text("""select *
-                                    from (
-                                        select si.id as share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
-                                        from share_info si
-                                        left join share_history sh on si.id = sh.share_id
-                                    ) t
-                                    where coalesce(date, now()) = coalesce(date, now())
-                                    order by date asc
+            stm = sa.sql.text("""select si.ticker,si.id as share_id
+                                    from share_info si
+                                    left join share_history sh on si.id = sh.share_id
+                                    group by si.id, si.ticker							
+                                    order by max(coalesce(sh.date, '1900-01-01')) asc
                                     limit 4""")
             
             res = sess.execute(stm).fetchall()
@@ -251,12 +267,15 @@ class StockImporter:
                                 where ticker in :tickers""")
             sel = sel.bindparams(tickers=tuple(tickers))
             
-
         with self.db.connect() as conn:
             res = conn.execute(sel).fetchall()
         df = pd.DataFrame(res)
+
         tickdic = {}
-        for ticker in df['ticker'].unique():
-            tickdic[ticker] = df[df['ticker'] == ticker].to_dict(orient='records')
+        if df.empty:
+            return tickdic
+        else:
+            for ticker in df['ticker'].unique():
+                tickdic[ticker] = df[df['ticker'] == ticker].to_dict(orient='records')
                     
-        return tickdic
+            return tickdic
