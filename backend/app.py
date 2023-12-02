@@ -7,6 +7,7 @@ import os
 import yfinance as yf
 from dotenv import load_dotenv
 import sqlalchemy as sa
+from backend.utils import Responses
 from db_structure.json_encoder import JsonEncoder; 
 from db_structure.sql_meta import StockMeta
 from stock_importer.StockImporter import StockImporter
@@ -161,6 +162,18 @@ def update_stock_prices():
     si = StockImporter()
     res = si.set_prices()
     return Response(JsonEncoder().encode(res), content_type='application/json')
+
+@app.route('/set-stock-history', methods=['POST'])
+def set_stock_history():
+    if(request.headers.get('x-userid') != os.getenv('OWNER_GUID')):
+        return Response('Not allowed', status=403)
+    
+    if 'ticker' not in request.json:
+        return Responses.error('Missing required param "ticker"') 
+    
+    res = StockImporter().set_history(request.json['ticker'])
+
+    return Responses.json(res)
 
 @app.route('/reset-database', methods=['GET', 'POST'])
 def reset_database():

@@ -1,6 +1,7 @@
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 import yfinance as yf
+from backend.utils.yfinance_session import get_session
 from db_structure.sql_meta import StockMeta
 from uuid import uuid4
 import os
@@ -9,12 +10,14 @@ import pandas as pd
 from typing import List
 from sqlalchemy.orm import Session
 from datetime import datetime
+from sqlalchemy.dialects import postgresql as pg
 
 
 class StockImporter:
     def __init__(self) -> None:
         self.db = sa.create_engine(os.environ.get('DB_STRING'))
         self.meta = StockMeta()
+        self.session = get_session()
 
     def create_account(self, uuid = str(uuid4())) -> str:
         newrow = self.meta.users.insert()
@@ -225,7 +228,7 @@ class StockImporter:
             stm = sa.sql.text("""select si.ticker,si.id as share_id
                                     from share_info si
                                     left join share_history sh on si.id = sh.share_id
-                                    group by si.id, si.ticker							
+                                    group by si.id, si.ticker
                                     order by max(coalesce(sh.date, '1900-01-01')) asc
                                     limit 4""")
             
@@ -246,6 +249,39 @@ class StockImporter:
             
 
         return df.to_dict(orient='records')
+
+    def set_history(self, ticker: str):
+        with self.db.connect() as conn:
+            stm = sa.sql.text("""select id from share_info where ticker = :ticker""")
+            stm = stm.bindparams(ticker=ticker)
+
+            res = conn.execute(stm).fetchone()
+            share_id = res[0]
+            
+            tick = yf.Ticker(ticker, self.session)
+            res = tick.history(start='2023-09-01', end='2023-09-30')
+            res.columns = ['open', 'high', 'low', 'close', 'volume', 'dividends', 'stock_splits']
+
+            res['date'] = res.index
+            res['share_id'] = share_id
+            res.loc[:, 'id'] = [str(uuid4()) for _ in range(len(res.index))]
+
+            res = res.to_dict(orient='records') 
+
+            # stm = si.meta.config.insert()
+            stmt = pg.insert(self.meta.share_history).values(
+                res
+            )
+            # stmt = stmt.on_conflict_do_update(
+            #     constraint=self.meta.config.primary_key, 
+            #     set_={'key': 'reset_token', 'value': token}
+
+            # )
+            stmt = stmt.on_conflict_do_nothing()
+            conn.execute(stmt)
+            conn.commit()
+
+        return res 
 
     def get_history(self, tickers: List = None, userid: str = None):
         if userid != None:

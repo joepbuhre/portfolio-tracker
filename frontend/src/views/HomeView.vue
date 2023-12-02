@@ -35,11 +35,11 @@
             </div>
             <div v-for="dfType in respSorted" class="py-2">
                 <h4 class="capitalize font-bold">Groupby: {{ dfType.name }}</h4>
-                <p v-if="dfType.data.length === 0">Sorry no data has been found</p>
-                <table v-if="dfType.data.length > 0" class="text-left shadow-lg border border-solid border-blue-200 rounded-md border-spacing-0 border-separate" :class="{hideAccountValues: !showAccountValues}">
+                <p v-if="(dfType.data?.length ?? 0) === 0">Sorry no data has been found</p>
+                <table v-else class="text-left shadow-lg border border-solid border-blue-200 rounded-md border-spacing-0 border-separate" :class="{hideAccountValues: !showAccountValues}">
                     <thead>
                         <tr class="border-b-slate-800 border-b">
-                            <th v-for="col in Object.keys(dfType.data[0])" class="px-10 capitalize" >
+                            <th v-for="col in Object.keys((dfType?.data?.[0] ?? []))" class="px-10 capitalize" >
                                 {{ col }}
                             </th>
                         </tr>
@@ -115,7 +115,7 @@ interface GroupDf {
     percentage: number;
 }
 
-type respType = { name: string; data: GroupDf[] }
+type respType = { name: string; data: GroupDf[] | undefined }
 
 const resp = ref<respType[]>([]);
 

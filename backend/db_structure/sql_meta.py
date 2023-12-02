@@ -49,7 +49,13 @@ class StockMeta:
         self.share_history = sa.Table('share_history', self.meta,
                                       sa.Column('id', sa.VARCHAR(256), primary_key=True),
                                       sa.Column('share_id', sa.VARCHAR(256)),
-                                      sa.Column('price', sa.DECIMAL(19,4)),
+                                      sa.Column('open', sa.DECIMAL(19,4)),
+                                      sa.Column('close', sa.DECIMAL(19,4)),
+                                      sa.Column('low', sa.DECIMAL(19,4)),
+                                      sa.Column('high', sa.DECIMAL(19,4)),
+                                      sa.Column('volume', sa.DECIMAL(19,4)),
+                                      sa.Column('dividends', sa.DECIMAL(19,4)),
+                                      sa.Column('stock_splits', sa.DECIMAL(19,4)),
                                       sa.Column('date', sa.DateTime),
                                       )
     def __create_config__(self):

@@ -5,7 +5,9 @@ preview:
 build:
 	docker build ../ -t portfolio-tracker
 reqs:
-	pipreqs --ignore  .\.venv --force .\
+	pipreqs --ignore  ".\.venv" --force .\
 
+setupdev:
+	pip install -r requirements.txt && pip install pipreqs
 serve:
 	docker run --rm -it --env-file .env -p 5000:5000 portfolio-tracker 
