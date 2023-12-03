@@ -2,10 +2,10 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 import yfinance as yf
-from backend.utils.degiro import extract_description
-from backend.utils.exceptions import NotExistException
-from backend.utils.helpers import set_hash, set_uuid
-from backend.utils.yfinance_session import get_session
+from utils.degiro import extract_description
+from utils.exceptions import NotExistException
+from utils.helpers import set_hash, set_uuid
+from utils.yfinance_session import get_session
 from db_structure.sql_meta import StockMeta
 from uuid import uuid4
 import os

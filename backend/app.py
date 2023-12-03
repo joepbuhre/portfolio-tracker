@@ -7,8 +7,8 @@ import os
 import yfinance as yf
 from dotenv import load_dotenv
 import sqlalchemy as sa
-from backend.utils import Responses
-from backend.utils.exceptions import NotExistException
+from utils import Responses
+from utils.exceptions import NotExistException
 from db_structure.json_encoder import JsonEncoder; 
 from db_structure.sql_meta import StockMeta
 from stock_importer.StockImporter import StockImporter
