@@ -18,8 +18,9 @@ class StockMeta:
 
     def manual_scripts(self):
         return """
-        create unique index IF NOT EXISTS x_share_info_unique on share_info (isin, market);    
-        create unique index IF NOT EXISTS x_share_user_unique_order_id on share_user (order_id);    
+        create unique index IF NOT EXISTS x_share_info_unique on share_info (isin);    
+        -- create unique index IF NOT EXISTS x_share_user_unique_hash on share_user (hash);    
+        create unique index IF NOT EXISTS x_share_history_unique on share_history (share_id, date);
         """
 
     def __create_users__(self):
@@ -40,11 +41,22 @@ class StockMeta:
         self.share_user = sa.Table('share_user', self.meta,
                                     sa.Column('id', sa.VARCHAR(256), primary_key=True),
                                     sa.Column('share_id', sa.VARCHAR(256)),
-                                    sa.Column('order_id', sa.VARCHAR(256)),
                                     sa.Column('user_id', sa.VARCHAR(256), nullable=False),
-                                    sa.Column('count', sa.Numeric, default=0)
+                                    sa.Column('purchase_date', sa.DateTime),
+                                    sa.Column('currency_date', sa.Date),
+                                    sa.Column('product', sa.VARCHAR(500), nullable=True),
+                                    sa.Column('isin', sa.VARCHAR(256)),
+                                    sa.Column('description', sa.VARCHAR(500), nullable=True),
+                                    sa.Column('fxrate', sa.DECIMAL(19,4), default=0),
+                                    sa.Column('mutation_currency', sa.VARCHAR(20), nullable=True),
+                                    sa.Column('mutation', sa.DECIMAL(19,4), default=0),
+                                    sa.Column('balance_currency', sa.VARCHAR(20), nullable=True),
+                                    sa.Column('balance', sa.DECIMAL(19,4), default=0),
+                                    sa.Column('order_id', sa.VARCHAR(256), nullable=True),
+                                    sa.Column('quantity', sa.DECIMAL(19,4), nullable=True),
+                                    sa.Column('share_price', sa.DECIMAL(19,4), nullable=True),
+                                    sa.Column('hash', sa.Numeric, unique=True),
                                    )
-       
     def __create_share_history__(self):
         self.share_history = sa.Table('share_history', self.meta,
                                       sa.Column('id', sa.VARCHAR(256), primary_key=True),

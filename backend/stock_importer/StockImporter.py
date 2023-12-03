@@ -1,6 +1,10 @@
+import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 import yfinance as yf
+from backend.utils.degiro import extract_description
+from backend.utils.exceptions import NotExistException
+from backend.utils.helpers import set_hash, set_uuid
 from backend.utils.yfinance_session import get_session
 from db_structure.sql_meta import StockMeta
 from uuid import uuid4
@@ -43,8 +47,8 @@ class StockImporter:
     def getMetaData(self, list) -> yf.Tickers:
         # Get metadata
         ticks = ' '.join(list)
-        tickers = yf.Tickers(ticks)
-        print('still working')
+        tickers = yf.Tickers(ticks, session=self.session)
+
         return tickers
 
     def handleCsv(self, file) -> pd.DataFrame:
@@ -66,7 +70,39 @@ class StockImporter:
         self.cleaned_csv = df
 
         return df
+    
+    def handleCsvAccount(self, file) -> pd.DataFrame:
+        '''
+        Returns a dataframe with the columns: date, description, isin, market, order_id, count
+        '''
 
+        df = pd.read_csv(file)
+
+        df.columns = [   'date'
+                        ,'time'
+                        ,'currency_date'
+                        ,'product'
+                        ,'isin'
+                        ,'description'
+                        ,'fxrate'
+                        ,'mutation_currency'
+                        ,'mutation'
+                        ,'balance_currency'
+                        ,'balance'
+                        ,'order_id']
+
+        self.cleaned_csv = df
+        try:
+            df['purchase_date'] = pd.to_datetime((df['date'] + ' ' + df['time']), format='%d-%m-%Y %H:%M')
+            df['currency_date'] = pd.to_datetime(df['currency_date'], format='%d-%m-%Y')
+            df.drop(columns=['date', 'time'], inplace=True)
+
+            df = df.replace({np.nan: None})
+        except Exception as e:
+            print(e)
+        
+        return df
+    
     def get_share_info(self, user_id = None, df = None, by: List | str = ['description', 'ticker']):
         with self.db.connect() as conn:
             stmt = self.meta.share_info.select()
@@ -78,11 +114,15 @@ class StockImporter:
         
         if user_id != None:
             with self.db.connect() as conn:
-                stm = sa.sql.text("select si.*, su.count from share_info si inner join share_user su on si.id = su.share_id and coalesce(si.ticker, '') <> '' and su.user_id = :user_id ")
+                stm = sa.sql.text("""
+select si.* , SUM(case when su.mutation < 0 then su.quantity else -su.quantity end) as quantity
+from share_info si 
+inner join share_user su on si.id = su.share_id and coalesce(si.ticker, '') <> '' and su.user_id = :user_id 
+group by si.id, si.isin, si.description,si.market, si.ticker
+                                  """)
                 
                 stm = stm.bindparams(user_id=user_id)
                 df = pd.read_sql(stm, con=conn)
-                print(df)
         elif df == None:
             df = pd.DataFrame()
 
@@ -90,7 +130,7 @@ class StockImporter:
         
         df['Koers'] = df['ticker'].apply(lambda x: float(self.get_saved_quote(x)))
         
-        df['totalValue'] = (df['count'] * df['Koers'])
+        df['totalValue'] = (df['quantity'] * df['Koers'])
         
         if type(by) == str: by = [by]
 
@@ -108,7 +148,7 @@ class StockImporter:
             by=by
         ).aggregate({
             'totalValue': 'sum',
-            'count': 'sum'
+            'quantity': 'sum'
         }).reset_index()
 
         df['percentage'] =  df['totalValue'] / sum(df['totalValue'])
@@ -118,49 +158,52 @@ class StockImporter:
         df['percentage'] = df['percentage'].round(4)
 
         # Remove unneeded rows
-        df = df[df['count'] > 0]
+        df = df[df['quantity'] > 0]
 
         return df
 
     def add_shares(self, file, userid = None):
-        df = self.handleCsv(file)
+        df = self.handleCsvAccount(file)
         __share = self.meta.share_info
 
-        df2 = df.loc[:, [ 'isin', 'description', 'market' ]]
-        
-        df2 = df2.drop_duplicates()
-        
-
-        df2.loc[:, 'id'] = [str(uuid4()) for _ in range(len(df2.index))]
+        # first insert the possible new tickers we've got
+        # we need to check how we are going to set market
+        df_stocks = df.loc[:, [ 'isin', 'product' ]]
+        df_stocks.columns = ['isin', 'description']
+        df_stocks = df_stocks.drop_duplicates(subset=['isin']).dropna()
+        df_stocks = set_uuid(df_stocks)
 
         with self.db.connect() as conn:
-            for row in df2.to_dict(orient='records'):
+            for row in df_stocks.to_dict(orient='records'):
                 stmt = insert(__share).values(row)
                 stmt = stmt.on_conflict_do_nothing(
-                    index_elements=['isin', 'market']
+                    index_elements=['isin']
                 )
                 conn.execute(stmt)
             conn.commit()
         
-            sel = __share.select().where(__share.c.isin.in_(df['isin'])).where(__share.c.market.in_(df['market']))
+            sel = __share.select().where(__share.c.isin.in_(df['isin']))
             res = conn.execute(sel).fetchall()
         
             if userid != None:
-                df3 = pd.merge(df, pd.DataFrame(res), how='left', left_on=['isin', 'market'], right_on=['isin', 'market'])
+                df3 = pd.merge(df, pd.DataFrame(res).loc[:, ['isin', 'id']], how='left', left_on=['isin'], right_on=['isin'])
                 df3['share_id'] = df3['id']
                 df3['user_id'] = userid
-                df3.loc[:, 'id'] = [str(uuid4()) for _ in range(len(df3.index))]
-                df3 = df3.loc[:, [ 'id', 'share_id', 'order_id', 'user_id', 'count' ]]
+                df3 = set_hash(df3)
+                df3 = set_uuid(df3)
+                df3 = extract_description(df3)
+                df3 = df3.replace({np.nan: None})
+
+
+                # df3 = df3.loc[:, [ 'id', 'share_id', 'order_id', 'user_id', 'count' ]]
                 
-                for row in df3.to_dict(orient='records'):
-                    stmt = insert(self.meta.share_user).values(row)
-                    stmt = stmt.on_conflict_do_nothing(
-                        index_elements=['order_id']
-                    )
-                    conn.execute(stmt)
+                stmt = insert(self.meta.share_user).values(df3.to_dict(orient='records')).on_conflict_do_nothing(
+                    index_elements=['hash']
+                )
+                conn.execute(stmt)
                 conn.commit()
 
-        return res
+        return True 
 
     def match_ticker(self, shareid_ticker: list[dict]):
         shares = self.meta.share_info
@@ -172,13 +215,24 @@ class StockImporter:
 
     def get_saved_quote(self, ticker: str) -> float | None:
         # We're gonna look into the database and fetch the last record
-        stmt = sa.sql.text("""select price
-                                from (
-                                    select sh.share_id, sh.price, sh.date, si.ticker, max(date) over(partition by ticker)
-                                    from share_history sh
-                                    left join share_info si on si.id = sh.share_id
-                                ) t
-                                where t.max = t.date and ticker = :ticker""")
+        stmt = sa.sql.text("""
+select case when curr.currency = 'USD' then t.price / t.fxrate else price end as price, *
+from (
+	select sh.share_id, sh.close as price, sh.date, si.ticker, max(sh.date) over(partition by ticker), exchange.close as fxrate
+	from share_history sh
+	left join share_info si on si.id = sh.share_id
+	left join (
+		select * from share_history where share_id = (select id from share_info where ticker = 'EURUSD=X')
+	) exchange on sh.date::date = exchange.date::date
+) t
+left join (
+	select share_id, min(mutation_currency) as currency 
+	from share_user 
+	where quantity is not null 
+	group by share_id
+) curr on curr.share_id = t.share_id
+where t.max = t.date and ticker = :ticker
+""")
         stmt = stmt.bindparams(ticker=ticker)
 
         with self.db.connect() as conn:
@@ -250,54 +304,72 @@ class StockImporter:
 
         return df.to_dict(orient='records')
 
-    def set_history(self, ticker: str):
+    def set_history(self, ticker: str, save: bool, filter: None | dict) -> list:
         with self.db.connect() as conn:
-            stm = sa.sql.text("""select id from share_info where ticker = :ticker""")
-            stm = stm.bindparams(ticker=ticker)
+            # Fetch share ID
+            res = conn.execute(
+                sa.sql.text("""select id from share_info where ticker = :ticker""").bindparams(ticker=ticker)
+            ).fetchone()
 
-            res = conn.execute(stm).fetchone()
+            # Raise a notexist exception when share couldn't be found
+            if res == None:
+                raise NotExistException(f'Share "{ticker}" does not exists')
             share_id = res[0]
             
+            # Set body params otherwise do defaults
+            filter = {'period': '1d'} if filter == None or len(filter) == 0 else filter
+
             tick = yf.Ticker(ticker, self.session)
-            res = tick.history(start='2023-09-01', end='2023-09-30')
+            res = tick.history(**filter)
+            res = res.iloc[:, 0:7]
             res.columns = ['open', 'high', 'low', 'close', 'volume', 'dividends', 'stock_splits']
 
             res['date'] = res.index
             res['share_id'] = share_id
-            res.loc[:, 'id'] = [str(uuid4()) for _ in range(len(res.index))]
+            res = set_uuid(res)
 
             res = res.to_dict(orient='records') 
 
-            # stm = si.meta.config.insert()
-            stmt = pg.insert(self.meta.share_history).values(
-                res
-            )
-            # stmt = stmt.on_conflict_do_update(
-            #     constraint=self.meta.config.primary_key, 
-            #     set_={'key': 'reset_token', 'value': token}
-
-            # )
-            stmt = stmt.on_conflict_do_nothing()
-            conn.execute(stmt)
-            conn.commit()
+            if save:
+                stmt = pg.insert(self.meta.share_history).values(
+                            res
+                        ).on_conflict_do_nothing(
+                            index_elements=['share_id', 'date']
+                        )
+                conn.execute(stmt)
+                conn.commit()
 
         return res 
 
     def get_history(self, tickers: List = None, userid: str = None):
         if userid != None:
-            sel = sa.sql.text("""select *, ROUND(CASE WHEN COALESCE(prev_price, 0) = 0 THEN 0 ELSE price / prev_price -1 END, 4) AS growth from (
-                                    select sh.id, sh.share_id, sh.price, sh.date, si.ticker, lag(sh.price) over (partition by sh.share_id order by sh.date asc) prev_price
-                                    from share_history sh
-                                    left join share_info si on sh.share_id = si.id
-                                    where share_id 
-                                        in ( select share_id from share_user where user_id = :userid ) 
-                                        and si.ticker is not null
-                                        and sh.price is not null
-                                ) t """)
+            sel = sa.sql.text("""
+select *, ROUND(CASE WHEN COALESCE(prev_price, 0) = 0 THEN 0 ELSE close / prev_price -1 END, 4) AS growth 
+from (
+	SELECT    
+		sh.id,
+		sh.share_id,
+		sh.close,
+		sh.date,
+		si.ticker,
+		Lag(sh.close) OVER (partition BY sh.share_id ORDER BY sh.date ASC) prev_price
+	FROM      share_history sh
+	LEFT JOIN share_info si
+	ON        sh.share_id = si.id
+	WHERE     
+		share_id IN (
+		  SELECT share_id
+		  FROM   share_user
+		  WHERE  user_id = :userid
+		)
+	AND si.ticker IS NOT NULL
+	AND sh.close IS NOT NULL
+) t
+""")
             sel = sel.bindparams(userid=userid)
 
         else :
-            sel = sa.sql.text("""select sh.id, sh.share_id, sh.price, sh.date, si.ticker
+            sel = sa.sql.text("""select sh.id, sh.share_id, sh.close, sh.date, si.ticker
                                 from share_history sh
                                 left join share_info si on sh.share_id = si.id
                                 where ticker in :tickers""")

@@ -22,7 +22,7 @@ const props = defineProps<{
 
 onMounted(() => {
     const ticker = Object.entries(props.history)[0][1]
-    var options = {
+    var options: ApexCharts.ApexOptions = {
         series: Object.entries(props.history).map(tickers => ({
             name: tickers[0],
             data: tickers[1].map(el => ({x: el.date, y: el.growth}))
@@ -45,6 +45,9 @@ onMounted(() => {
         },
         markers: {
           size: 0,
+        },
+        stroke: {
+            width: 1
         },
         title: {
           text: 'Stock Price Movement',
