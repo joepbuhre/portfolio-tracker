@@ -7,6 +7,8 @@ import os
 import yfinance as yf
 from dotenv import load_dotenv
 import sqlalchemy as sa
+from backend.utils import Responses
+from backend.utils.exceptions import NotExistException
 from db_structure.json_encoder import JsonEncoder; 
 from db_structure.sql_meta import StockMeta
 from stock_importer.StockImporter import StockImporter
@@ -148,9 +150,10 @@ def check_auth():
 def import_csv():
     si = StockImporter()
     f = request.files['file']
-    res = si.handleCsv(f)
+    res = si.handleCsvAccount(f)
 
-    return Response(res.to_json(), content_type='application/json')
+    return Responses.json(res.to_dict(orient='records'))
+
 
 # Allow routes only when user is ownerguid
 @app.route('/update-stock-prices', methods=['POST'])
@@ -161,6 +164,23 @@ def update_stock_prices():
     si = StockImporter()
     res = si.set_prices()
     return Response(JsonEncoder().encode(res), content_type='application/json')
+
+@app.route('/set-stock-history', methods=['POST'])
+def set_stock_history():
+    if(request.headers.get('x-userid') != os.getenv('OWNER_GUID')):
+        return Response('Not allowed', status=403)
+    
+    if 'ticker' not in request.json:
+        return Responses.error('Missing required param "ticker"') 
+    try:
+        body = request.json['filter'] if 'filter' in request.json else None
+        res = StockImporter().set_history(**request.json)
+        return Responses.json(res)
+    except NotExistException as e:
+        return Responses.client_error(e.msg)
+    except Exception as e:
+        print(e)
+        return Responses.error('unkown error occured')
 
 @app.route('/reset-database', methods=['GET', 'POST'])
 def reset_database():
