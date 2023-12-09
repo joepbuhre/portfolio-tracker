@@ -20,10 +20,6 @@ app.add_middleware(
 from .dependencies import get_current_user, is_owner
 from .routers import base, stocks
 
-app = FastAPI(
-    # dependencies=[Depends(get_current_user), Depends(is_owner)]
-)
-
 
 app.include_router(base.router)
 app.include_router(stocks.router)
