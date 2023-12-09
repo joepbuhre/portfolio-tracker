@@ -5,7 +5,7 @@ preview:
 build:
 	docker build ../ -t portfolio-tracker
 reqs:
-	pipreqs --ignore  ".\.venv" --force .\
+	pip freeze > requirements.txt
 
 setupdev:
 	pip install -r requirements.txt && pip install pipreqs
