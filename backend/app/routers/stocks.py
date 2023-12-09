@@ -9,6 +9,13 @@ from stock_manager import StockManager
 
 router = APIRouter()
 
+@router.get('/stocks/history')
+def get_history(userid: Annotated[str, Depends(get_current_user)]):
+    sm = StockManager(userid)
+    hist = sm.get_history()
+
+    return hist
+
 @router.get('/stocks/{groupby}')
 def stocks_groupby(user: Annotated[str, Depends(get_current_user)], groupby: Union[str, None] = None):
     sm = StockManager(user)
@@ -20,10 +27,3 @@ def stocks_groupby(user: Annotated[str, Depends(get_current_user)], groupby: Uni
     
     df: pd.DataFrame = sm.get_stocks(groupby)
     return df.to_dict(orient='records')
-
-@router.get('/stocks/history')
-def get_history(userid: Annotated[str, Depends(get_current_user)]):
-    sm = StockManager(userid)
-    hist = sm.get_history()
-
-    return hist
