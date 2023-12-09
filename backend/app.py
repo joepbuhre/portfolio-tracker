@@ -1,4 +1,5 @@
 from datetime import datetime as dt, timedelta as td
+import time
 import pandas as pd
 import json
 from flask import Flask, Response, jsonify, render_template, request
@@ -7,8 +8,10 @@ import os
 import yfinance as yf
 from dotenv import load_dotenv
 import sqlalchemy as sa
-from backend.utils import Responses
-from backend.utils.exceptions import NotExistException
+from app_manager.app_manager import AppManager
+from stock_manager.degiro import DeGiro
+from utils import Responses
+from utils.exceptions import NotExistException
 from db_structure.json_encoder import JsonEncoder; 
 from db_structure.sql_meta import StockMeta
 from stock_importer.StockImporter import StockImporter
@@ -67,6 +70,9 @@ def dataframeGroupBy(groupby: str):
 
 @app.route('/stocks/<groupby>', methods = ['GET'])
 def stocks_groupby(groupby: str = None):
+    tm = time.perf_counter()
+    print(f'Started at {tm}')
+    
     si = StockImporter()
     
     if groupby == None:
@@ -76,20 +82,23 @@ def stocks_groupby(groupby: str = None):
     
     df = si.get_stocks(request.headers.get('x-userid'), by=groupby)
 
+    print(f'Function took: {time.perf_counter() - tm}')
     res = df
     return Response(res.to_json(orient='records'), content_type='application/json')
 
 @app.route('/history', methods = ['GET'])
 def get_history():
     si = StockImporter()
+    am = AppManager()
     tickers = request.args.getlist('ticker')
     tickers.extend(i for i in request.args.getlist('ticker[]') if i not in tickers)
 
     userid = request.headers.get('x-userid')
 
+
     if len(tickers) == 0 and userid == None:
         return Response(json.dumps({'error': 'Userid and / or tickers in query params missing'}), status=400, content_type='application/json')
-    elif len(tickers) == 0 and si.login(userid) == True:
+    elif len(tickers) == 0 and am.login(userid) == True:
         hist = si.get_history(userid=userid)
     elif len(tickers) > 0:
         hist = si.get_history(tickers)
@@ -112,39 +121,35 @@ def add_shares_anonymous(groupby: str):
 @app.route('/add-shares', methods = ['POST'])
 def add_shares():
     si = StockImporter()
-    me = StockMeta()
-    me = me.getMeta()
+    am = AppManager()
 
-    if si.login(request.headers.get('x-userid')) == False:
-        return Response(None, status=403)
+    if am.login(request.headers.get('x-userid')) == False:
+        return Responses.forbidden()
 
         
     f = request.files['file']
     res = si.add_shares(f, request.headers.get('x-userid'))
-    return Response(JsonEncoder().encode(res), content_type='application/json')
-
+    return Responses.json(res)
 
 @app.route('/create-account', methods=['POST'])
 def create_account():
-    imp = StockImporter()
-    guid = imp.create_account()
+    am = AppManager()
+    guid = am.create_account()
 
-    return Response(json.dumps({
+    return Responses.json({
         'uuid': guid[0]
-    }), content_type='application/json')
+    })
 
 @app.route('/login', methods=['POST'])
 def check_auth():
-    imp = StockImporter()
-    res = imp.login(request.headers.get('x-userid'))
+    am = AppManager()
+    res = am.login(request.headers.get('x-userid'))
     if res:
-        return Response(json.dumps({
+        return Responses.json({
             'success': res
-        }), content_type='application/json')
+        })
     else:
-        return Response(json.dumps({
-             'success': res
-        }), status=403 ,content_type='application/json')
+        return Responses.forbidden()
 
 @app.route('/import-csv', methods=['POST'])    
 def import_csv():
@@ -240,6 +245,14 @@ def stock():
 
     return Response(json.dumps(res), content_type='application/json')
 
+@app.route('/stock-actions',methods=['GET'])
+def get_actions():
+    dg = DeGiro()
+    return Responses.json(
+        dg.get_account()
+    )
+
+
 @app.route('/match-ticker', methods = ['POST'])
 def match_ticker():
     data = request.get_json(force=True)
@@ -250,13 +263,12 @@ def match_ticker():
 
 # Run this on startup
 def init():
-    si = StockImporter()
-    si.meta.meta.create_all(si.db)
-    with si.db.connect() as conn:
-        conn.execute(sa.sql.text(si.meta.manual_scripts()))
+    am = AppManager()
+    am.meta.meta.create_all(am.db)
+    with am.db.connect() as conn:
+        conn.execute(sa.sql.text(am.meta.manual_scripts()))
         conn.commit()
     
     
-    si.create_account(os.environ.get('OWNER_GUID'))
+    am.create_account(os.environ.get('OWNER_GUID'))
  
-init()

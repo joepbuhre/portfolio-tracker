@@ -22,7 +22,7 @@ class Responses:
         if type(obj) in [dict, list]:
              res = obj
         
-        return Response(JsonEncoder().encode(res), content_type='application/json')
+        return Response(JsonEncoder().encode(res), content_type='application/json', status=200)
     
     def client_error(string):
          return Response(
@@ -38,4 +38,12 @@ class Responses:
                    'error': string
               }), 
               content_type='application/json', status=500
+         )
+    
+    def forbidden(string):
+         return Response(
+              JsonEncoder().encode({
+                   'error': 'forbidden'
+              }),
+              content_type='application/json', status=403
          )
