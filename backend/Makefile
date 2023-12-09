@@ -1,5 +1,5 @@
 dev:
-	flask --app app --debug run
+	uvicorn app:app --reload
 preview:
 	waitress-serve --listen=*:5000 app:app
 build:

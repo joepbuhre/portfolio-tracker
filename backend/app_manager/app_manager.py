@@ -19,7 +19,7 @@ class AppManager:
         
         return uuid
     
-    def login(self, uuid) -> bool:
+    def login(self, uuid: str) -> bool:
         meta = self.meta
         findrow = meta.users.select().where(meta.users.c.id == uuid)
         with self.db.connect() as conn:

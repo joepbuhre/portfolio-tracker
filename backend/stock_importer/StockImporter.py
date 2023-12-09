@@ -18,10 +18,11 @@ from sqlalchemy.dialects import postgresql as pg
 
 
 class StockImporter:
-    def __init__(self) -> None:
+    def __init__(self, userid) -> None:
         self.db = sa.create_engine(os.environ.get('DB_STRING'))
         self.meta = StockMeta()
         self.session = get_session()
+        self.userid = userid
 
     def getMetaData(self, list) -> yf.Tickers:
         # Get metadata
