@@ -2,6 +2,7 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 import yfinance as yf
+from db_structure import get_db
 from utils.degiro import extract_description
 from utils.exceptions import NotExistException
 from utils.helpers import set_hash, set_uuid
@@ -19,7 +20,7 @@ from sqlalchemy.dialects import postgresql as pg
 
 class StockImporter:
     def __init__(self, userid) -> None:
-        self.db = sa.create_engine(os.environ.get('DB_STRING'))
+        self.db = get_db()
         self.meta = StockMeta()
         self.session = get_session()
         self.userid = userid

@@ -1,11 +1,12 @@
 import os
 from uuid import uuid4
 import sqlalchemy as sa
+from db_structure import get_db
 from db_structure.sql_meta import StockMeta
 
 class AppManager:
     def __init__(self) -> None:
-        self.db = sa.create_engine(os.environ.get('DB_STRING'))
+        self.db = get_db()
         self.meta = StockMeta()
 
     def create_account(self, uuid = str(uuid4())) -> str:

@@ -9,6 +9,11 @@ from stock_manager import StockManager
 
 router = APIRouter()
 
+@router.get('/stocks')
+def get_all_stocks(userid: Annotated[str, Depends(get_current_user)]):
+    sm = StockManager(userid)
+    return sm.get_stocks().to_dict(orient='records')
+
 @router.get('/stocks/history')
 def get_history(userid: Annotated[str, Depends(get_current_user)]):
     sm = StockManager(userid)

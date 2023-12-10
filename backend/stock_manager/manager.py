@@ -4,9 +4,9 @@ from typing import List, Union
 import pandas as pd
 import yfinance as yf
 
-from sqlalchemy import create_engine
 from sqlalchemy.sql import text
 import yfinance
+from db_structure import get_db
 from utils.yfinance_session import get_session 
 
 from db_structure.sql_meta import StockMeta
@@ -15,7 +15,7 @@ class StockManager:
     def __init__(self, userid: str):
         self.userid = userid
         self.session = get_session()
-        self.db = create_engine(getenv('DB_STRING'))
+        self.db = get_db()
         self.meta = StockMeta()        
 
     def getMetaData(self, list) -> yf.Tickers:
