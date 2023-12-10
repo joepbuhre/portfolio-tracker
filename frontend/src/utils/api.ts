@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequ
 import { useMain } from '../store/main'
 
 export const api = axios.create({
-    baseURL: (import.meta.env.DEV ? 'http://localhost:5000' : "/")
+    baseURL: (import.meta.env.DEV ? 'http://localhost:8000' : "/")
 })
 
 api.interceptors.request.use((conf: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
