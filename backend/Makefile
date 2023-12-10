@@ -1,11 +1,11 @@
 dev:
-	flask --app app --debug run
+	uvicorn app:app --reload
 preview:
 	waitress-serve --listen=*:5000 app:app
 build:
 	docker build ../ -t portfolio-tracker
 reqs:
-	pipreqs --ignore  ".\.venv" --force .\
+	pip freeze > requirements.txt
 
 setupdev:
 	pip install -r requirements.txt && pip install pipreqs

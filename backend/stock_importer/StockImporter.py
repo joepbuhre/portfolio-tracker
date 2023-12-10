@@ -2,10 +2,10 @@ import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
 import yfinance as yf
-from backend.utils.degiro import extract_description
-from backend.utils.exceptions import NotExistException
-from backend.utils.helpers import set_hash, set_uuid
-from backend.utils.yfinance_session import get_session
+from utils.degiro import extract_description
+from utils.exceptions import NotExistException
+from utils.helpers import set_hash, set_uuid
+from utils.yfinance_session import get_session
 from db_structure.sql_meta import StockMeta
 from uuid import uuid4
 import os
@@ -18,32 +18,12 @@ from sqlalchemy.dialects import postgresql as pg
 
 
 class StockImporter:
-    def __init__(self) -> None:
+    def __init__(self, userid) -> None:
         self.db = sa.create_engine(os.environ.get('DB_STRING'))
         self.meta = StockMeta()
         self.session = get_session()
+        self.userid = userid
 
-    def create_account(self, uuid = str(uuid4())) -> str:
-        newrow = self.meta.users.insert()
-        newrow = newrow.values(id=uuid)
-
-        with self.db.connect() as conn:
-            if conn.execute(self.meta.users.select().where(self.meta.users.c.id == uuid)).fetchone() == None:
-                res = conn.execute(newrow)
-                conn.commit()
-        
-        return uuid
-    
-    def login(self, uuid) -> bool:
-        meta = self.meta
-        findrow = meta.users.select().where(meta.users.c.id == uuid)
-        with self.db.connect() as conn:
-            res = conn.execute(findrow)
-            try:
-                return type(res.fetchone()[0]) == str
-            except:
-                return False
-        
     def getMetaData(self, list) -> yf.Tickers:
         # Get metadata
         ticks = ' '.join(list)
