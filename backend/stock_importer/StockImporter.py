@@ -302,8 +302,15 @@ where t.max = t.date and ticker = :ticker
 
             tick = yf.Ticker(ticker, self.session)
             res = tick.history(**filter)
-            res = res.iloc[:, 0:7]
-            res.columns = ['open', 'high', 'low', 'close', 'volume', 'dividends', 'stock_splits']
+
+            res.rename(columns={
+                'open': 'Open',
+                'high': 'High',
+                'low': 'Low',
+                'close': 'Close',
+                'volume': 'Volume'
+            }, inplace=True)
+            # res.columns = ['open', 'high', 'low', 'close', 'volume', 'dividends', 'stock_splits']
 
             res['date'] = res.index
             res['share_id'] = share_id
@@ -311,7 +318,7 @@ where t.max = t.date and ticker = :ticker
 
             res = res.to_dict(orient='records') 
 
-            if save:
+            if save and len(res) > 1:
                 stmt = pg.insert(self.meta.share_history).values(
                             res
                         ).on_conflict_do_nothing(
