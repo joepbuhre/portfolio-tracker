@@ -1,0 +1,30 @@
+[tool.poetry]
+name = "portfolio-tracker"
+version = "0.0.0"
+description = ""
+authors = ["Joep Buhre <jcbuhre@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11,<3.13"
+pandas = "^2.1.4"
+SQLAlchemy = "^2.0.23"
+fastapi = "^0.105.0"
+yfinance = "^0.2.33"
+pyxirr = "^0.10.1"
+psycopg2 = "^2.9.9"
+uvicorn = "^0.24.0.post1"
+redis = "^5.0.1"
+requests-cache = "^1.1.1"
+pyrate-limiter = ">=2.8,<3.0"
+requests-ratelimiter = "^0.4.2"
+dramatiq = "^1.15.0"
+apscheduler = "^3.10.4"
+python-dotenv = "^1.0.0"
+
+
+[tool.poetry.group.dev.dependencies]
+watch = "^0.2.7"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
