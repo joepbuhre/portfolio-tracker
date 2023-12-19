@@ -1,4 +1,5 @@
 from typing import Annotated
+from app.routers import importer
 from dotenv import load_dotenv
 
 from fastapi import Depends, FastAPI, Header
@@ -25,6 +26,7 @@ from .routers import base, stocks
 
 app.include_router(base.router)
 app.include_router(stocks.router)
+app.include_router(importer.router)
 
 # app.include_router(
 #     admin.router,
