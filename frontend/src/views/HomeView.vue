@@ -9,45 +9,28 @@
     <div></div>
     <div>
         <div class="relative overflow-x-auto">
-            <table
-                class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400"
-            >
-                <thead
-                    class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
-                >
-                    <tr>
-                        <th
-                            scope="col"
-                            class="px-6 py-3 text-left"
-                            v-for="desc in [
-                                'Description',
-                                'Ticker',
-                                'Portfolio gewicht',
-                                'Quantity',
-                                'Percentage',
-                            ]"
-                        >
-                            {{ desc }}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr
-                        v-for="stock in stocks"
-                        class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 text-left"
-                    >
-                        <th class="px-6 py-2">{{ stock.description }}</th>
-                        <td class="px-6 py-2">{{ stock.ticker }}</td>
-                        <td class="px-6 py-2">
-                            {{ EuroFormatter.format(stock.totalValue) }}
-                        </td>
-                        <td class="px-6 py-2">{{ stock.quantity }}</td>
-                        <td class="px-6 py-2">
-                            {{ PercentageFormatter.format(stock.percentage) }}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <IuTable
+                :rows="stocks"
+                :headers="{
+                    description: {
+                        name: 'Description',
+                    },
+                    ticker: {
+                        name: 'Ticker',
+                    },
+                    totalValue: {
+                        name: 'Portfolio gewicht',
+                        formatter: EuroFormatter,
+                    },
+                    quantity: {
+                        name: 'Quantity',
+                    },
+                    percentage: {
+                        name: 'Percentage',
+                        formatter: PercentageFormatter,
+                    },
+                }"
+            />
         </div>
     </div>
 </template>
@@ -55,12 +38,13 @@
 import { computed, onMounted, ref } from "vue";
 import PrestationCard, {
     PrestationCardProps,
-} from "../components/PrestationCard.vue";
+} from "@components/PrestationCard.vue";
 import { useMain } from "../store/main";
 import { api } from "../utils/api";
 import { EuroFormatter, PercentageFormatter } from "../utils/formatters";
-import type { TickerHistory } from "../components/GraphLine.vue";
-import GraphLine from "../components/GraphLine.vue";
+import type { TickerHistory } from "@components/GraphLine.vue";
+import GraphLine from "@components/GraphLine.vue";
+import { IuTable } from "@IuComponentLib/TheTable";
 
 onMounted(() => {
     fetchHistory();
@@ -77,6 +61,12 @@ const fetchHistory = () => {
         history.value = <{ [key: string]: TickerHistory[] }>data;
     });
 };
+
+const fetchStats = () => {
+    api.get('/stocks/stats').then(res => {
+        
+    })
+}
 
 interface stocks {
     description: string;
@@ -102,6 +92,12 @@ const cards = computed((): PrestationCardProps[] => [
         currentValueFormat: EuroFormatter,
         differenceValue: -11.8 / 100,
         differenceValueFormat: PercentageFormatter,
+    },
+    {
+        title: "Profit",
+        currentValue: 0,
+        currentValueFormat: EuroFormatter,
+        differenceValue: 0
     },
     {
         title: "Dividend",

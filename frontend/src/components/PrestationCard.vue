@@ -6,6 +6,7 @@
                 {{ currentValue }}
             </div>
             <span
+                v-if="props.differenceValue"
                 class="flex items-center px-2 py-0.5 mx-2 text-sm  rounded-full"
                 :class="{
                     'text-green-600 bg-green-100': props.differenceValue > 0,
@@ -31,7 +32,7 @@ export interface PrestationCardProps {
     title: string;
     currentValue: number;
     currentValueFormat?: Intl.NumberFormat;
-    differenceValue: number;
+    differenceValue?: number;
     differenceValueFormat?: Intl.NumberFormat;
 }
 
@@ -43,9 +44,14 @@ const currentValue = computed((): string =>
         : props.currentValue.toString()
 );
 
-const differenceValue = computed((): string =>
-    props.differenceValueFormat
-        ? props.differenceValueFormat.format(props.differenceValue)
-        : props.differenceValue.toString()
+const differenceValue = computed((): string =>{
+    if (props.differenceValue) {
+        return props.differenceValueFormat
+            ? props.differenceValueFormat.format(props.differenceValue)
+            : props.differenceValue.toString()
+        } else {
+            return ''
+        }
+    }
 );
 </script>

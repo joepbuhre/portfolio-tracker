@@ -27,6 +27,16 @@ const router = createRouter({
             name: "Prestaties",
             path: '/prestaties',
             component: HomeView
+        },
+        {
+            name: "Acties",
+            path: "/actions",
+            component: () => import('../views/ActionsView.vue')
+        },
+        {
+            name: "Settings",
+            path: "/settings",
+            component: () => import('../views/SettingView.vue')
         }
     ],
     history: createWebHashHistory(),

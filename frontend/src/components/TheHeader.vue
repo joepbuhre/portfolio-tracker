@@ -45,5 +45,11 @@ const routes = ref<RouteLocationNamedRaw[]>([
     {
         name: "Prestaties",
     },
+    {
+        name: "Acties"
+    },
+    {
+        name: "Settings"
+    }
 ]);
 </script>
