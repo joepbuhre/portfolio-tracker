@@ -13,7 +13,11 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-
+    "baseUrl": ".",
+    "paths": {
+        "@IuComponentLib/*": ["src/IuComponentLib/*", "src/IuComponentLib"],
+        "@components/*": ["src/components/*", "src/components"],
+    },
     /* Linting */
     "strict": true,
     "noUnusedLocals": false,
