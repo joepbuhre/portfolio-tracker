@@ -1,13 +1,15 @@
-
-import os
 from typing import Annotated
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Header
+
+from fastapi import Depends, FastAPI, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
+from utils.logger import get_logger
+
+app = FastAPI()
 
 load_dotenv()
-app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
