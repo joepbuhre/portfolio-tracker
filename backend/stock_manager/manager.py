@@ -43,7 +43,7 @@ group by si.id, si.isin, si.description,si.market, si.ticker
         
         df['Koers'] = df['ticker'].apply(lambda x: float(self.get_saved_quote(x)))
         
-        df['totalValue'] = (df['quantity'] * df['Koers'])
+        df['totalValue'] = (df['quantity'].apply(lambda x: float(x)) * df['Koers'])
         
         if type(by) == str: by = [by]
 
