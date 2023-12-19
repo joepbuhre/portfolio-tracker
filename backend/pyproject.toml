@@ -20,6 +20,7 @@ requests-ratelimiter = "^0.4.2"
 dramatiq = "^1.15.0"
 apscheduler = "^3.10.4"
 python-dotenv = "^1.0.0"
+python-multipart = "^0.0.6"
 
 
 [tool.poetry.group.dev.dependencies]
