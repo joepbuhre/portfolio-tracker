@@ -1,15 +1,13 @@
 <template>
-    <div
-        class="flex fixed inset-0 justify-center items-center bg-black bg-opacity-20 backdrop-blur-sm"
+    <TheModal
+        :show="true"
+        title="Login"
+        accept-button="Submit"
+        decline-button="Create Account"
+        @accept="login"
+        @decline="createAccount"
     >
-        <div
-            class="bg-white shadow-lg w-[500px] h-[300px] rounded-md flex justify-center items-center px-10 relative"
-        >
-            <button class="absolute top-2 right-2" @click="emits('failed', false)">
-                <X />
-            </button>
-            <div class="w-full">
-                <form @submit.prevent="login">
+        <form @submit.prevent="login">
                     <label for="accountid"
                         >Put in your unique accountnumber</label
                     >
@@ -32,7 +30,7 @@
                         </button>
                     </div>
 
-                    <button
+                    <!-- <button
                         class="mt-2 bg-blue-600 text-white px-2 py-1 rounded-sm"
                         @click="login"
                         type="submit"
@@ -44,11 +42,9 @@
                         @click="createAccount"
                     >
                         Create Account
-                    </button>
+                    </button> -->
                 </form>
-            </div>
-        </div>
-    </div>
+    </TheModal>
 </template>
 
 <script setup lang="ts">
@@ -56,6 +52,7 @@ import { onMounted, ref } from 'vue';
 import { useMain } from '../store/main';
 import { api } from '../utils/api';
 import { Eye,EyeOffIcon, X } from 'lucide-vue-next';
+import { TheModal } from '@IuComponentLib/TheModal';
 
 
 const main = useMain()
