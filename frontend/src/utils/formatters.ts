@@ -7,3 +7,5 @@ export const PercentageFormatter = new Intl.NumberFormat("nl-NL", {
     style: "percent",
     maximumFractionDigits: 2,
 })
+
+export const DateFormatter = new Intl.DateTimeFormat('nl-NL')

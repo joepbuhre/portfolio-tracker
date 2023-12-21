@@ -143,9 +143,10 @@ group by si.id, si.isin, si.description,si.market, si.ticker
 
         return df
 
-    def add_shares(self, file, userid = None):
+    def add_shares(self, file):
         df = self.handleCsvAccount(file)
         __share = self.meta.share_info
+        userid = self.userid
 
         # first insert the possible new tickers we've got
         # we need to check how we are going to set market

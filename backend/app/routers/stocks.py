@@ -30,6 +30,16 @@ def get_history(userid: Annotated[str, Depends(get_current_user)]):
 def stocks_set_stock_history(body: StockHistoryBody,isowner: Annotated[bool, Depends(is_owner)]):
     return StockImporter().set_history(ticker=body.ticker, filter=dict(body.filter), save=body.save)
 
+@router.get('/stocks/statistics')
+def stocks_statistics(user: Annotated[str, Depends(get_current_user)]):
+    sm = StockManager(user)
+
+from stock_manager.degiro import DeGiro
+@router.get('/stocks/actions')
+def stocks_actions(user: Annotated[str, Depends(get_current_user)]):
+    dg = DeGiro()
+    return dg.get_account()
+
 @router.get('/stocks/{groupby}')
 def stocks_groupby(user: Annotated[str, Depends(get_current_user)], groupby: Union[str, None] = None):
     sm = StockManager(user)
@@ -41,8 +51,3 @@ def stocks_groupby(user: Annotated[str, Depends(get_current_user)], groupby: Uni
     
     df: pd.DataFrame = sm.get_stocks(groupby)
     return df.to_dict(orient='records')
-
-@router.get('/stocks/statistics')
-def stocks_statistics(user: Annotated[str, Depends(get_current_user)]):
-    sm = StockManager(user)
-

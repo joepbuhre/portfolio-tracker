@@ -17,4 +17,7 @@ router = APIRouter()
 def post_importer_degiro(file: UploadFile, userid: Annotated[str, Depends(get_current_user)]):
     log.debug('Importing file')
     
+    imp = StockImporter(userid)
+    imp.add_shares(file.file)
+
     return [file.filename]
