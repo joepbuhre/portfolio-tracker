@@ -8,6 +8,7 @@ export default defineConfig({
     alias: [
       { find: '@IuComponentLib/', replacement:  '/src/IuComponentLib/' },
       { find: '@components/', replacement:  '/src/components/' },
+      { find: '@src/', replacement:  '/src/' },
     ],
   },
 })
