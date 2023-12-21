@@ -83,3 +83,6 @@ def get_logger(level: str = 'DEBUG'):
 
 
     return log
+
+log = get_logger()
+log
