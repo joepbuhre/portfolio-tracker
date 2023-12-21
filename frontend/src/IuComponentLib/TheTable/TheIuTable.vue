@@ -1,9 +1,9 @@
 <template>
     <table
-        class="w-full text-sm text-left rtl:text-right text-gray-500 dark:text-gray-400"
+        class="w-full text-sm text-left rtl:text-right text-gray-700 dark:text-gray-400 border border-solid"
     >
         <thead
-            class="text-xs text-gray-700 bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
+            class="text-xs text-gray-900 bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
         >
             <tr class="relative">
                 <slot name="default">
@@ -51,15 +51,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, getCurrentInstance, onMounted, ref } from "vue";
 import type { Header, HeaderValues, Row } from "./types";
-import { direction } from "./enums";
 import { dir, sortFunction, srtVal } from "./sorting";
 import TheSorting from "./TheSorting.vue";
+import TheColumn from "./TheColumn.vue";
 
 const props = withDefaults(
     defineProps<{
-        headers: Header;
+        headers?: Header;
         rows: Row[];
         sortingEnabled?: boolean;
     }>(),
@@ -69,7 +69,24 @@ const props = withDefaults(
 );
 
 const getHeaders = computed((): Header => {
-    return props.headers;
+    if(props.headers) {
+        return props.headers;
+    } else {
+        const slots = getCurrentInstance()?.slots;
+        if(slots === undefined) return {};
+
+        const columns = slots.default?.().filter(el => el.type == TheColumn).map((el): [any, HeaderValues] => {
+            return [
+                el.props?.['column-name'], {
+                    name: (el.props?.['display-name'] ?? el.props?.['column-name'] ),
+                    formatter: el.props?.['formatter']
+                }
+            ]
+        }) ?? []
+        console.log(columns)
+        return Object.fromEntries(columns) 
+        
+    }
 });
 
 const getRows = computed((): Row[] => {
@@ -91,4 +108,10 @@ const formattedValue = (
         return row[key];
     }
 };
+
+onMounted(() => {
+    
+    
+})
+
 </script>
