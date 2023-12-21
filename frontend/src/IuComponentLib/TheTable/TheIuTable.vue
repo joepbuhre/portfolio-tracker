@@ -56,6 +56,7 @@ import type { Header, HeaderValues, Row } from "./types";
 import { dir, sortFunction, srtVal } from "./sorting";
 import TheSorting from "./TheSorting.vue";
 import TheColumn from "./TheColumn.vue";
+import { filterFunction } from "./filtering";
 
 const props = withDefaults(
     defineProps<{
@@ -83,18 +84,18 @@ const getHeaders = computed((): Header => {
                 }
             ]
         }) ?? []
-        console.log(columns)
+
         return Object.fromEntries(columns) 
         
     }
 });
 
 const getRows = computed((): Row[] => {
-    if (srtVal.value === null) {
-        return props.rows;
-    } else {
-        return props.rows.sort(sortFunction);
-    }
+    // if (srtVal.value === null) {
+    //     return props.rows;
+    // } else {
+        return props.rows.sort(sortFunction).filter(filterFunction)
+    // }
 });
 
 const formattedValue = (

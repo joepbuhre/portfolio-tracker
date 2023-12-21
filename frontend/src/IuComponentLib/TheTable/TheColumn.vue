@@ -1,42 +1,53 @@
 <template>
     <th
         scope="col"
+        class="relative"
         :class="{
-            'px-6 py-3 text-left uppercase': !reset
+            'px-6 py-3 text-left uppercase': !reset,
         }"
-    >
-        <TheSorting
-            v-if="sortingEnabled"
-            :object-key="columnName"
-            :display="{
-                name: displayName,
-                formatter: formatter
-            }"
-        />
-        <span v-else>
-            {{ displayName }}
+    >  
+        <span class="flex items-center">
+            <TheFilter v-if="props.filterValues" :filter-values="props.filterValues" @filter-change="filterChange" />
+            <TheSorting
+                v-if="sortingEnabled"
+                :object-key="columnName"
+                :display="{
+                    name: displayName,
+                    formatter: formatter,
+                }"
+            />
+            <span v-else>
+                {{ displayName }}
+            </span>
         </span>
+        
     </th>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import type { Header, HeaderValues, Row } from "./types";
-import { direction } from "./enums";
-import { dir, sortFunction, srtVal } from "./sorting";
+import type { HeaderValues, Row } from "./types";
 import TheSorting from "./TheSorting.vue";
+import { FilterIcon } from "lucide-vue-next";
+import TheFilter from "./TheFilter.vue";
+import { doFiltering } from "./filtering";
 
 const props = withDefaults(
     defineProps<{
         columnName: string;
         displayName: string;
         sortingEnabled?: boolean;
-        formatter?: HeaderValues['formatter']
-        reset?: boolean
+        formatter?: HeaderValues["formatter"];
+        reset?: boolean;
+        filterValues?: string[]
     }>(),
     {
         sortingEnabled: true,
-        reset: false
+        reset: false,
     }
 );
+
+const filterChange = (vals: any[]) => {
+    doFiltering(props.columnName, vals)
+}
+
 </script>

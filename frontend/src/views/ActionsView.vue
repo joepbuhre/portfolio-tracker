@@ -21,8 +21,8 @@
                 column-name="purchase_date"
                 display-name="Purchase Date"
             />
-            <Column column-name="description_share" display-name="Share" />
-            <Column column-name="description" display-name="action" />
+            <Column column-name="description_share" display-name="Share" :filter-values="stockActionsComputed.map(el => el.description_share)" />
+            <Column column-name="description" display-name="action" :filter-values="stockActionsComputed.map(el => el.description)" />
             <Column column-name="home_mutation" display-name="Home Mutation" :formatter="EuroFormatter" />
         </IuTable>
     </div>
@@ -39,7 +39,9 @@ import { Loader2Icon } from "lucide-vue-next";
 const stockActions = ref<StockActions[]>([]);
 
 const stockActionsComputed = computed(() => {
-   return stockActions.value
+    return stockActions.value.filter(el => {
+        return el.description_share.toUpperCase().includes(searchVal.value.toUpperCase())
+    })
 })
 
 const showFileUpload = ref<boolean>(false)
