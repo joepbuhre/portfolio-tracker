@@ -32,7 +32,7 @@ class StockManager:
             stm = text("""
 select si.* , SUM(case when su.mutation < 0 then su.quantity else -su.quantity end) as quantity
 from share_info si 
-inner join share_user su on si.id = su.share_id and coalesce(si.ticker, '') <> '' and su.user_id = :user_id 
+inner join share_actions su on si.id = su.share_id and coalesce(si.ticker, '') <> '' and su.user_id = :user_id 
 group by si.id, si.isin, si.description,si.market, si.ticker
                                 """)
             
@@ -121,7 +121,7 @@ ON        sh.share_id = si.id
 WHERE     
     share_id IN (
         SELECT share_id
-        FROM   share_user
+        FROM   share_actions
         WHERE  user_id = :userid
     )
 AND si.ticker IS NOT NULL
