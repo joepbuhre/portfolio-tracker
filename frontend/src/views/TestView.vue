@@ -3,12 +3,16 @@
         
     </TheTimeLine>     -->
     <IuTable :rows="getRows" :headers="getHeaders">
-        <Column v-for="(display, key) of getHeaders" :display-name="display.name" :column-name="key" sorting-enabled />
+        <Column
+            v-for="(display, key) of getHeaders"
+            :display-name="display.name"
+            :column-name="key"
+            sorting-enabled
+        />
     </IuTable>
 </template>
 
 <script setup lang="ts">
-
 import { Column, IuTable } from "@IuComponentLib/TheTable";
 import TheTimeLine from "@components/TheTimeLine.vue";
 import { computed } from "vue";

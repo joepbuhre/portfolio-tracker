@@ -1,9 +1,9 @@
 <template>
     <table
-        class="w-full text-sm text-left rtl:text-right text-gray-700 dark:text-gray-400 border border-solid"
+        class="w-full border border-solid text-left text-sm text-gray-700 rtl:text-right dark:text-gray-400"
     >
         <thead
-            class="text-xs text-gray-900 bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
+            class="bg-gray-50 text-xs text-gray-900 dark:bg-gray-700 dark:text-gray-400"
         >
             <tr class="relative">
                 <slot name="default">
@@ -15,14 +15,13 @@
                         <TheSorting
                             v-if="props.sortingEnabled"
                             :object-key="key"
-                            :display="(display as HeaderValues)"
+                            :display="display as HeaderValues"
                         />
                         <span v-else>
                             {{ (display as HeaderValues).name }}
                         </span>
                     </th>
                 </slot>
-               
             </tr>
         </thead>
         <tbody>
@@ -33,7 +32,7 @@
                 :headers="getHeaders"
             >
                 <tr
-                    class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 text-left"
+                    class="border-b bg-white text-left dark:border-gray-700 dark:bg-gray-800"
                 >
                     <slot
                         v-for="(display, key) of getHeaders"
@@ -41,7 +40,13 @@
                         :value="row[key as keyof typeof row]"
                     >
                         <td class="px-6 py-2">
-                            {{ formattedValue((display as HeaderValues), row, key) }}
+                            {{
+                                formattedValue(
+                                    display as HeaderValues,
+                                    row,
+                                    key,
+                                )
+                            }}
                         </td>
                     </slot>
                 </tr>
@@ -66,27 +71,33 @@ const props = withDefaults(
     }>(),
     {
         sortingEnabled: true,
-    }
+    },
 );
 
 const getHeaders = computed((): Header => {
-    if(props.headers) {
+    if (props.headers) {
         return props.headers;
     } else {
         const slots = getCurrentInstance()?.slots;
-        if(slots === undefined) return {};
+        if (slots === undefined) return {};
 
-        const columns = slots.default?.().filter(el => el.type == TheColumn).map((el): [any, HeaderValues] => {
-            return [
-                el.props?.['column-name'], {
-                    name: (el.props?.['display-name'] ?? el.props?.['column-name'] ),
-                    formatter: el.props?.['formatter']
-                }
-            ]
-        }) ?? []
+        const columns =
+            slots
+                .default?.()
+                .filter((el) => el.type == TheColumn)
+                .map((el): [any, HeaderValues] => {
+                    return [
+                        el.props?.["column-name"],
+                        {
+                            name:
+                                el.props?.["display-name"] ??
+                                el.props?.["column-name"],
+                            formatter: el.props?.["formatter"],
+                        },
+                    ];
+                }) ?? [];
 
-        return Object.fromEntries(columns) 
-        
+        return Object.fromEntries(columns);
     }
 });
 
@@ -94,14 +105,14 @@ const getRows = computed((): Row[] => {
     // if (srtVal.value === null) {
     //     return props.rows;
     // } else {
-        return props.rows.sort(sortFunction).filter(filterFunction)
+    return props.rows.sort(sortFunction).filter(filterFunction);
     // }
 });
 
 const formattedValue = (
     display: HeaderValues,
     row: Row,
-    key: keyof typeof row
+    key: keyof typeof row,
 ): string => {
     if (display.formatter) {
         return display.formatter.format(row[key]);
@@ -110,9 +121,5 @@ const formattedValue = (
     }
 };
 
-onMounted(() => {
-    
-    
-})
-
+onMounted(() => {});
 </script>

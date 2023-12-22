@@ -1,5 +1,3 @@
-import TheIuUploader from './TheIuUploader.vue'
+import TheIuUploader from "./TheIuUploader.vue";
 
-export {
-    TheIuUploader,
-}
+export { TheIuUploader };

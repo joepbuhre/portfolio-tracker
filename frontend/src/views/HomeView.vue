@@ -1,5 +1,5 @@
 <template>
-    <h1 class="font-light text-3xl py-4">Prestaties</h1>
+    <h1 class="py-4 text-3xl font-light">Prestaties</h1>
     <div class="flex gap-5">
         <PrestationCard v-for="card in cards" class="w-1/4" v-bind="card" />
     </div>
@@ -63,10 +63,8 @@ const fetchHistory = () => {
 };
 
 const fetchStats = () => {
-    api.get('/stocks/stats').then(res => {
-        
-    })
-}
+    api.get("/stocks/stats").then((res) => {});
+};
 
 interface stocks {
     description: string;
@@ -97,7 +95,7 @@ const cards = computed((): PrestationCardProps[] => [
         title: "Profit",
         currentValue: 0,
         currentValueFormat: EuroFormatter,
-        differenceValue: 0
+        differenceValue: 0,
     },
     {
         title: "Dividend",

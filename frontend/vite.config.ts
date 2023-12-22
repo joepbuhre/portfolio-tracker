@@ -1,14 +1,14 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: [
-      { find: '@IuComponentLib/', replacement:  '/src/IuComponentLib/' },
-      { find: '@components/', replacement:  '/src/components/' },
-      { find: '@src/', replacement:  '/src/' },
-    ],
-  },
-})
+    plugins: [vue()],
+    resolve: {
+        alias: [
+            { find: "@IuComponentLib/", replacement: "/src/IuComponentLib/" },
+            { find: "@components/", replacement: "/src/components/" },
+            { find: "@src/", replacement: "/src/" },
+        ],
+    },
+});

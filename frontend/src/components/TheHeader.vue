@@ -7,7 +7,7 @@
                     {{ loc.name }}
                 </RouterLink>
             </div>
-            <button class="fixed top-2 right-2 flex gap-2" @click="logout">
+            <button class="fixed right-2 top-2 flex gap-2" @click="logout">
                 <LogOutIcon />
                 Logout
             </button>
@@ -17,27 +17,26 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { RouteLocationNamedRaw, RouteLocationRaw } from "vue-router";
-import {LogOutIcon} from 'lucide-vue-next'
+import { LogOutIcon } from "lucide-vue-next";
 import { useMain } from "../store/main";
 import TheLoginModel from "./TheLoginModel.vue";
 
-const main = useMain()
+const main = useMain();
 
 const logout = () => {
-    showLogin.value = true
-    main.setUserId(null)
-}
+    showLogin.value = true;
+    main.setUserId(null);
+};
 
 const showLogin = ref<boolean>(true);
 
 const loginSuccess = () => {
-    showLogin.value = false 
-}
-
+    showLogin.value = false;
+};
 
 const routes = ref<RouteLocationNamedRaw[]>([
     {
-        name: 'Home'
+        name: "Home",
     },
     {
         name: "Portfolio",
@@ -46,10 +45,10 @@ const routes = ref<RouteLocationNamedRaw[]>([
         name: "Prestaties",
     },
     {
-        name: "Acties"
+        name: "Acties",
     },
     {
-        name: "Settings"
-    }
+        name: "Settings",
+    },
 ]);
 </script>

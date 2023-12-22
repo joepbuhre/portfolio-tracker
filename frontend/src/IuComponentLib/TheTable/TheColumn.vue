@@ -5,9 +5,13 @@
         :class="{
             'px-6 py-3 text-left uppercase': !reset,
         }"
-    >  
+    >
         <span class="flex items-center">
-            <TheFilter v-if="props.filterValues" :filter-values="props.filterValues" @filter-change="filterChange" />
+            <TheFilter
+                v-if="props.filterValues"
+                :filter-values="props.filterValues"
+                @filter-change="filterChange"
+            />
             <TheSorting
                 v-if="sortingEnabled"
                 :object-key="columnName"
@@ -20,7 +24,6 @@
                 {{ displayName }}
             </span>
         </span>
-        
     </th>
 </template>
 
@@ -38,16 +41,15 @@ const props = withDefaults(
         sortingEnabled?: boolean;
         formatter?: HeaderValues["formatter"];
         reset?: boolean;
-        filterValues?: string[]
+        filterValues?: string[];
     }>(),
     {
         sortingEnabled: true,
         reset: false,
-    }
+    },
 );
 
 const filterChange = (vals: any[]) => {
-    doFiltering(props.columnName, vals)
-}
-
+    doFiltering(props.columnName, vals);
+};
 </script>

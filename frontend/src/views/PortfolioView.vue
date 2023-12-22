@@ -1,8 +1,8 @@
 <template>
-    <h1 class="font-light text-3xl py-4">Portfolio</h1>
+    <h1 class="py-4 text-3xl font-light">Portfolio</h1>
     <div class="flex">
         <div class="w-1/5">
-            <h2 class="text-blue-700 font-bold text-lg flex gap-3">
+            <h2 class="flex gap-3 text-lg font-bold text-blue-700">
                 Welcome
                 <span>
                     <Loader2 v-if="main.isLoading" class="animate-spin" />
@@ -10,15 +10,15 @@
                 </span>
             </h2>
             <input type="file" v-on:change="handleFile" />
-            <div class="flex gap-5 mt-3 mb-10">
+            <div class="mb-10 mt-3 flex gap-5">
                 <button
-                    class="bg-blue-700 hover:bg-opacity-80 duration-200 text-white rounded-md border border-solid border-slate-600 px-2 py-1"
+                    class="rounded-md border border-solid border-slate-600 bg-blue-700 px-2 py-1 text-white duration-200 hover:bg-opacity-80"
                     @click="populateTables"
                 >
                     Upload Stocks
                 </button>
                 <button
-                    class="bg-blue-700 hover:bg-opacity-80 duration-200 text-white rounded-md border border-solid border-slate-600 px-2 py-1"
+                    class="rounded-md border border-solid border-slate-600 bg-blue-700 px-2 py-1 text-white duration-200 hover:bg-opacity-80"
                     @click="fetchStocks"
                 >
                     Fetch Stocks
@@ -42,12 +42,12 @@
                     :value="groupby.value"
                     :id="groupby.value"
                 />
-                <label class="capitalize pl-2" :for="groupby.value">{{
+                <label class="pl-2 capitalize" :for="groupby.value">{{
                     groupby.name
                 }}</label>
             </div>
         </div>
-        <div class="w-full grid grid-cols-1 gap-3" v-if="hasData">
+        <div class="grid w-full grid-cols-1 gap-3" v-if="hasData">
             <div
                 class="h-96 rounded-md"
                 :class="{ 'animate-pulse bg-slate-300 ': main.isLoading }"
@@ -59,7 +59,7 @@
                 />
             </div>
             <div v-for="dfType in respSorted" class="py-2">
-                <h4 class="capitalize font-bold">Groupby: {{ dfType.name }}</h4>
+                <h4 class="font-bold capitalize">Groupby: {{ dfType.name }}</h4>
                 <IuTable
                     v-if="dfType?.data?.[0] !== undefined"
                     :headers="getHeaderObject(dfType?.data?.[0])"
@@ -67,13 +67,13 @@
                 >
                     <template #tr="{ value: row, headers }">
                         <tr
-                            class="bg-white border-b dark:bg-gray-800 dark:border-gray-700 text-left hover:bg-slate-100 duration-200"
+                            class="border-b bg-white text-left duration-200 hover:bg-slate-100 dark:border-gray-700 dark:bg-gray-800"
                             @mouseover="
                                 highLightSeries(row?.ticker?.replace('.', 'x'))
                             "
                             @mouseleave="
                                 unHighLightSeries(
-                                    row?.ticker?.replace('.', 'x')
+                                    row?.ticker?.replace('.', 'x'),
                                 )
                             "
                         >
@@ -84,7 +84,7 @@
                                 {{
                                     display?.formatter
                                         ? display.formatter.format(
-                                              row[key as keyof typeof row]
+                                              row[key as keyof typeof row],
                                           )
                                         : row[key as keyof typeof row]
                                 }}
@@ -219,7 +219,7 @@ const populateTables = () => {
                             name: el,
                             data: res.data,
                         });
-                    }
+                    },
                 );
             });
         }
@@ -268,10 +268,10 @@ const getHeaderObject = (dataArr: any): Header => {
                     el === "percentage"
                         ? PercentageFormatter
                         : el === "totalValue"
-                        ? EuroFormatter
-                        : undefined,
+                          ? EuroFormatter
+                          : undefined,
             },
-        ])
+        ]),
     );
 };
 
@@ -310,10 +310,10 @@ const fetchHistory = () => {
 const highLightSeries = (seriesName: string | undefined) => {
     if (seriesName !== undefined) {
         const nonTargets = document.querySelectorAll(
-            `.apexcharts-area-series.apexcharts-plot-series .apexcharts-series:not([seriesName=${seriesName}])`
+            `.apexcharts-area-series.apexcharts-plot-series .apexcharts-series:not([seriesName=${seriesName}])`,
         );
         Array.from(nonTargets).forEach((node) =>
-            node.classList.add("legend-mouseover-inactive")
+            node.classList.add("legend-mouseover-inactive"),
         );
     }
 };
@@ -321,10 +321,10 @@ const highLightSeries = (seriesName: string | undefined) => {
 const unHighLightSeries = (seriesName: string | undefined) => {
     if (seriesName !== undefined) {
         const nonTargets = document.querySelectorAll(
-            `.apexcharts-area-series.apexcharts-plot-series .apexcharts-series.legend-mouseover-inactive`
+            `.apexcharts-area-series.apexcharts-plot-series .apexcharts-series.legend-mouseover-inactive`,
         );
         Array.from(nonTargets).forEach((node) =>
-            node.classList.remove("legend-mouseover-inactive")
+            node.classList.remove("legend-mouseover-inactive"),
         );
     }
 };

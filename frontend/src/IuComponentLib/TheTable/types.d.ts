@@ -7,7 +7,7 @@ interface HeaderValues {
 }
 
 export interface Header {
-    [columnName: string]: HeaderValues
+    [columnName: string]: HeaderValues;
 }
 export interface Row {
     [columnName: string]: any;
