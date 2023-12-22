@@ -38,7 +38,7 @@
 
                                 <label
                                     :for="val"
-                                    class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100"
+                                    class="ml-2 text-sm font-medium text-gray-900 hover:cursor-pointer dark:text-gray-100"
                                 >
                                     {{ val }}
                                 </label>

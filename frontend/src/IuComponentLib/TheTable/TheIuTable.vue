@@ -15,7 +15,7 @@
                         <TheSorting
                             v-if="props.sortingEnabled"
                             :object-key="key"
-                            :display="display as HeaderValues"
+                            :display="<HeaderValues>display"
                         />
                         <span v-else>
                             {{ (display as HeaderValues).name }}
@@ -25,6 +25,16 @@
             </tr>
         </thead>
         <tbody>
+            <tr v-if="(getRows ?? []).length === 0">
+                <td :colspan="Object.keys(getHeaders).length" class="m-auto">
+                    <div
+                        class="my-10 flex w-full items-center justify-center gap-3"
+                    >
+                        <Loader2Icon class="animate-spin" />
+                        Loading ...
+                    </div>
+                </td>
+            </tr>
             <slot
                 v-for="row in getRows"
                 name="tr"
@@ -62,6 +72,7 @@ import { dir, sortFunction, srtVal } from "./sorting";
 import TheSorting from "./TheSorting.vue";
 import TheColumn from "./TheColumn.vue";
 import { filterFunction } from "./filtering";
+import { Loader2Icon } from "lucide-vue-next";
 
 const props = withDefaults(
     defineProps<{
