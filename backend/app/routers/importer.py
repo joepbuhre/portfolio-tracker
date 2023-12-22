@@ -1,6 +1,6 @@
 from typing import Annotated, Union
 from fastapi import APIRouter, Depends, File, UploadFile
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from utils.logger import log
 import pandas as pd
 
@@ -20,4 +20,4 @@ def post_importer_degiro(file: UploadFile, userid: Annotated[str, Depends(get_cu
     imp = StockImporter(userid)
     imp.add_shares(file.file)
 
-    return [file.filename]
+    return True

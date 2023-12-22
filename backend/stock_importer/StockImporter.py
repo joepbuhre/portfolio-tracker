@@ -1,3 +1,6 @@
+from sys import prefix
+from app.types.degiro import categorize_transaction
+from db_structure.model import ShareActions
 import numpy as np
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import insert
@@ -84,6 +87,57 @@ class StockImporter:
         
         return df
     
+    def handleCsvAccountV2(self, file) -> pd.DataFrame:
+        '''
+        Returns a dataframe with the columns: date, description, isin, market, order_id, count
+        '''
+
+        df = pd.read_csv(file)
+
+        df.columns = [   'date'
+                        ,'time'
+                        ,'currency_date'
+                        ,'product'
+                        ,'isin'
+                        ,'description'
+                        ,'fxrate'
+                        ,'mutation_currency'
+                        ,'mutation'
+                        ,'balance_currency'
+                        ,'balance'
+                        ,'order_id']
+
+        self.cleaned_csv = df
+        try:
+            df['purchase_date'] = pd.to_datetime((df['date'] + ' ' + df['time']), format='%d-%m-%Y %H:%M')
+            df['currency_date'] = pd.to_datetime(df['currency_date'], format='%d-%m-%Y')
+            df.drop(columns=['date', 'time'], inplace=True)
+
+
+            df['action'] = df['description'].apply(lambda x: categorize_transaction(x))
+
+            df = df.replace({np.nan: None})
+
+            df = df.loc[:, [
+                'currency_date',
+                'product',
+                'description',
+                'isin',
+                'fxrate',
+                'mutation_currency',
+                'mutation',
+                'order_id',
+                'purchase_date',
+                'action'
+            ]]
+
+            df = df[df['mutation'].notnull()]
+
+        except Exception as e:
+            print(e)
+        
+        return df
+    
     def get_share_info(self, user_id = None, df = None, by: List | str = ['description', 'ticker']):
         with self.db.connect() as conn:
             stmt = self.meta.share_info.select()
@@ -144,7 +198,7 @@ group by si.id, si.isin, si.description,si.market, si.ticker
         return df
 
     def add_shares(self, file):
-        df = self.handleCsvAccount(file)
+        df = self.handleCsvAccountV2(file)
         __share = self.meta.share_info
         userid = self.userid
 
@@ -179,7 +233,9 @@ group by si.id, si.isin, si.description,si.market, si.ticker
 
                 # df3 = df3.loc[:, [ 'id', 'share_id', 'order_id', 'user_id', 'count' ]]
                 
-                stmt = insert(self.meta.share_user).values(df3.to_dict(orient='records')).on_conflict_do_nothing(
+                df3 = df3.loc[:, ['id','user_id','share_id','purchase_date','currency_date','product','fxrate','isin','mutation_currency','mutation','order_id','action','hash','quantity','share_price']]
+                
+                stmt = insert(ShareActions).values(df3.to_dict(orient='records')).on_conflict_do_nothing(
                     index_elements=['hash']
                 )
                 conn.execute(stmt)

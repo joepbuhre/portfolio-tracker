@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from db_structure import get_db
 from utils.yfinance_session import get_session
 from db_structure.sql_meta import StockMeta
+from app.types.degiro import TransactionType
 
 
 class DeGiro:
@@ -26,25 +27,23 @@ class DeGiro:
         return None
 
     def parse_test(self, x: pd.DataFrame):
-        quantity = x.loc[x['quantity'].notnull(), 'quantity'].values ,
-        transaction_cost = x.loc[x['description'] == 'DEGIRO Transactiekosten en/of kosten van derden', 'mutation'].values ,
+        quantity = sum(x.loc[x['quantity'].notnull(), 'quantity'].values) ,
+        transaction_cost = sum(x.loc[x['action'] == TransactionType.DEGIRO_TRANSACTION_COMISSION, 'mutation'].values) ,
         foreign_mutation = sum(x.loc[:, 'mutation'].values) ,
-        home_mutation = x.loc[x['description'] == 'Valuta Debitering', 'mutation'].values ,
+        home_mutation = 0 ,
         fx_rate = x.loc[x['fxrate'].notnull(), 'fxrate'].values ,
-        description = x.loc[:, 'description'].values
 
-        quantity = list(quantity[0]) if len(quantity[0]) > 0 else [None]
-        transaction_cost = list(transaction_cost[0]) if len(transaction_cost[0]) > 0 else [None]
-        foreign_mutation = list(foreign_mutation) if foreign_mutation else [None]
-        home_mutation = list(home_mutation[0]) if len(home_mutation[0]) > 0 else [None]
-        fx_rate = list(fx_rate[0]) if len(fx_rate[0]) > 0 else [None]
-        description = [description[0]] if len(description[0]) > 0 else [None]
-                
+        quantity = list(quantity) if list(quantity)[0] != 0 else [None]
+        transaction_cost = list(transaction_cost) if list(transaction_cost)[0] != 0 else [None]
+        foreign_mutation = list(foreign_mutation) if list(foreign_mutation)[0] else [None]
+        home_mutation = list(home_mutation[0]) if list(home_mutation)[0] != 0 else [None]
+        fx_rate = list(fx_rate[0]) if len(fx_rate[0]) != 0 else [None]
+
+      
         new_df = pd.DataFrame({
             'purchase_date': pd.Timestamp(x['purchase_date'].values[0]).date().strftime('%Y-%m-%d'),
             'order_id': x['order_id'].values[0],
             'share_id': x['share_id'].values[0],
-            'description': description,
             'quantity': quantity, 
             'transaction_cost': transaction_cost, 
             'foreign_mutation': foreign_mutation if fx_rate[0] is not None else None, 
@@ -55,7 +54,7 @@ class DeGiro:
 
     def get_account(self):
         with Session(self.db) as sess:
-            stm = text("select * from share_user where user_id = :user_id").bindparams(user_id=os.environ.get('OWNER_GUID'))
+            stm = text("select * from share_actions where user_id = :user_id").bindparams(user_id=os.environ.get('OWNER_GUID'))
             res = sess.execute(stm).fetchall()
             df = pd.DataFrame(res)
             if df.empty == True:
@@ -64,7 +63,7 @@ class DeGiro:
 
             # df = df[df['share_id'] == '63f6ce83-2742-4dfd-a6b1-c881d2b35658']
 
-            df['action'] = df.apply(self.parse_action, axis=1)
+            # df['action'] = df.apply(self.parse_action, axis=1)
 
             df = df.groupby(['purchase_date','order_id', 'share_id'], as_index=False, dropna=False).apply(self.parse_test)#.reset_index()
 

@@ -28,18 +28,16 @@
         <IuTable :rows="stockActionsComputed">
             <Column column-name="purchase_date" display-name="Purchase Date" />
             <Column
-                column-name="description_share"
-                display-name="Share"
-                :filter-values="
-                    stockActionsComputed.map((el) => el.description_share)
-                "
-            />
-            <Column
                 column-name="description"
-                display-name="action"
+                display-name="Share"
                 :filter-values="
                     stockActionsComputed.map((el) => el.description)
                 "
+            />
+            <Column
+                column-name="ticker"
+                display-name="Ticker"
+                :filter-values="stockActionsComputed.map((el) => el.ticker)"
             />
             <Column
                 column-name="home_mutation"
@@ -62,7 +60,7 @@ const stockActions = ref<StockActions[]>([]);
 
 const stockActionsComputed = computed(() => {
     return stockActions.value.filter((el) => {
-        return el.description_share
+        return el.description
             .toUpperCase()
             .includes(searchVal.value.toUpperCase());
     });
