@@ -10,7 +10,7 @@ from utils.degiro import extract_description
 from utils.exceptions import NotExistException
 from utils.helpers import set_hash, set_uuid
 from utils.yfinance_session import get_session
-from db_structure.sql_meta import StockMeta
+from db_structure.model import ShareHistory, ShareActions, ShareInfo
 from uuid import uuid4
 import os
 import requests
@@ -24,7 +24,6 @@ from sqlalchemy.dialects import postgresql as pg
 class StockImporter:
     def __init__(self, userid) -> None:
         self.db = get_db()
-        self.meta = StockMeta()
         self.session = get_session()
         self.userid = userid
 
@@ -140,7 +139,7 @@ class StockImporter:
     
     def get_share_info(self, user_id = None, df = None, by: List | str = ['description', 'ticker']):
         with self.db.connect() as conn:
-            stmt = self.meta.share_info.select()
+            stmt = sa.select(ShareInfo)
             res = conn.execute(stmt).fetchall()
         
         return pd.DataFrame(res).to_dict(orient='records')
@@ -199,7 +198,6 @@ group by si.id, si.isin, si.description,si.market, si.ticker
 
     def add_shares(self, file):
         df = self.handleCsvAccountV2(file)
-        __share = self.meta.share_info
         userid = self.userid
 
         # first insert the possible new tickers we've got
@@ -211,14 +209,14 @@ group by si.id, si.isin, si.description,si.market, si.ticker
 
         with self.db.connect() as conn:
             for row in df_stocks.to_dict(orient='records'):
-                stmt = insert(__share).values(row)
+                stmt = insert(ShareInfo).values(row)
                 stmt = stmt.on_conflict_do_nothing(
                     index_elements=['isin']
                 )
                 conn.execute(stmt)
             conn.commit()
         
-            sel = __share.select().where(__share.c.isin.in_(df['isin']))
+            sel = sa.select(ShareInfo).where(ShareInfo.isin.in_(df['isin']))
             res = conn.execute(sel).fetchall()
         
             if userid != None:
@@ -244,10 +242,9 @@ group by si.id, si.isin, si.description,si.market, si.ticker
         return True 
 
     def match_ticker(self, shareid_ticker: list[dict]):
-        shares = self.meta.share_info
         with self.db.connect() as conn:
             for row in shareid_ticker:
-                stmt = shares.update().where(shares.c.id == row['share_id']).values(ticker=row['ticker'])            
+                stmt = sa.update(ShareInfo).where(ShareInfo.id == row['share_id']).values(ticker=row['ticker'])            
                 conn.execute(stmt)
             conn.commit()
 
@@ -315,7 +312,6 @@ where t.max = t.date and ticker = :ticker
         return price
 
     def set_prices(self):
-        share_history = self.meta.share_history
         with Session(self.db) as sess:
             stm = sa.sql.text("""select si.ticker,si.id as share_id
                                     from share_info si
@@ -334,7 +330,7 @@ where t.max = t.date and ticker = :ticker
             df = df.dropna()
             if df.empty == False:
                 df2 = df.loc[:, ['id', 'share_id', 'price', 'date']]
-                sess.execute(share_history.insert().values(df2.to_dict(orient='records')))
+                sess.execute(sa.insert(ShareHistory).values(df2.to_dict(orient='records')))
                 sess.commit()
             else:
                 print('df is empty')
@@ -342,23 +338,23 @@ where t.max = t.date and ticker = :ticker
 
         return df.to_dict(orient='records')
 
-    def set_history(self, ticker: str, save: bool, filter: None | dict) -> list:
+    def set_history(self, ticker: List[str], save: bool, filter: None | dict) -> list:
         with self.db.connect() as conn:
             # Fetch share ID
             res = conn.execute(
-                sa.sql.text("""select id from share_info where ticker = :ticker""").bindparams(ticker=ticker)
-            ).fetchone()
+                sa.sql.text("""select id from share_info where ticker in :ticker """).bindparams(ticker=tuple(ticker))
+            ).fetchall()
 
             # Raise a notexist exception when share couldn't be found
             if res == None:
-                raise NotExistException(f'Share "{ticker}" does not exists')
+                raise NotExistException(f'Share "{ticker.join(" ")}" does not exists')
             share_id = res[0]
             
             # Set body params otherwise do defaults
             filter = {'period': '1d'} if filter == None or len(filter) == 0 else filter
 
-            tick = yf.Ticker(ticker, self.session)
-            res = tick.history(**filter)
+            tick = yf.Ticker("AMD.AS", self.session)
+            res = tick.history(**filter, repair=True)
 
             res.rename(columns={
                 'open': 'Open',
@@ -376,7 +372,7 @@ where t.max = t.date and ticker = :ticker
             res = res.to_dict(orient='records') 
 
             if save and len(res) > 1:
-                stmt = pg.insert(self.meta.share_history).values(
+                stmt = pg.insert(ShareHistory).values(
                             res
                         ).on_conflict_do_nothing(
                             index_elements=['share_id', 'date']

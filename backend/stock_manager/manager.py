@@ -9,14 +9,13 @@ import yfinance
 from db_structure import get_db
 from utils.yfinance_session import get_session 
 
-from db_structure.sql_meta import StockMeta
+from db_structure.model import ShareHistory, ShareActions, ShareInfo
 
 class StockManager:
     def __init__(self, userid: str):
         self.userid = userid
         self.session = get_session()
         self.db = get_db()
-        self.meta = StockMeta()        
 
     def getMetaData(self, list) -> yf.Tickers:
         # Get metadata
@@ -89,7 +88,7 @@ from (
 ) t
 left join (
 	select share_id, min(mutation_currency) as currency 
-	from share_user 
+	from share_actions 
 	where quantity is not null 
 	group by share_id
 ) curr on curr.share_id = t.share_id

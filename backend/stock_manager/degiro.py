@@ -9,14 +9,13 @@ from sqlalchemy.sql import text
 from sqlalchemy.orm import Session
 from db_structure import get_db
 from utils.yfinance_session import get_session
-from db_structure.sql_meta import StockMeta
+from db_structure.model import ShareHistory, ShareActions, ShareInfo
 from app.types.degiro import TransactionType
 
 
 class DeGiro:
     def __init__(self) -> None:
         self.db = get_db()
-        self.meta = StockMeta()
         self.session = get_session()
     
     def parse_action(self, x):
