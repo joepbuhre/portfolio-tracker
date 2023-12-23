@@ -30,6 +30,6 @@ api.interceptors.response.use(
     (error: AxiosError) => {
         const main = useMain();
         main.setLoading(false);
-        return error;
+        return Promise.reject(error);
     },
 );

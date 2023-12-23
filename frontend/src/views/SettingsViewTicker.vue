@@ -5,7 +5,7 @@
     >
         Save tickers
     </button>
-    <div class="flex md:px-32">
+    <div class="flex">
         <table class="min-w-full">
             <thead class="border-b bg-white">
                 <tr>

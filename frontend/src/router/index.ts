@@ -9,11 +9,6 @@ const router = createRouter({
             component: HomeView,
         },
         {
-            name: "Match Tickers",
-            path: "/match-tickers",
-            component: () => import("../views/MatchTickerView.vue"),
-        },
-        {
             name: "Test",
             path: "/test",
             component: () => import("../views/TestView.vue"),
@@ -37,6 +32,24 @@ const router = createRouter({
             name: "Settings",
             path: "/settings",
             component: () => import("../views/SettingView.vue"),
+            children: [
+                {
+                    name: "Settings Profile",
+                    path: "/settings/profile",
+                    component: () => import("../views/SettingsViewProfile.vue"),
+                    meta: {
+                        displayName: "Profile",
+                    },
+                },
+                {
+                    name: "Settings Tickers",
+                    path: "/settings/ticker",
+                    component: () => import("../views/SettingsViewTicker.vue"),
+                    meta: {
+                        displayName: "Tickers",
+                    },
+                },
+            ],
         },
     ],
     history: createWebHashHistory(),

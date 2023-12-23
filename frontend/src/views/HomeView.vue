@@ -4,13 +4,17 @@
         <PrestationCard v-for="card in cards" class="w-1/4" v-bind="card" />
     </div>
     <div class="my-8">
-        <GraphLine :history="history" v-if="Object.keys(history).length > 0" />
+        <GraphLine
+            :history="history"
+            v-if="history && Object.keys(history).length > 0"
+        />
     </div>
     <div></div>
     <div>
         <div class="relative overflow-x-auto">
             <IuTable
                 :rows="stocks"
+                :error-msg="errorMsg"
                 :headers="{
                     description: {
                         name: 'Description',
@@ -45,6 +49,7 @@ import { EuroFormatter, PercentageFormatter } from "../utils/formatters";
 import type { TickerHistory } from "@components/GraphLine.vue";
 import GraphLine from "@components/GraphLine.vue";
 import { IuTable } from "@IuComponentLib/TheTable";
+import { AxiosError } from "axios";
 
 onMounted(() => {
     fetchHistory();
@@ -55,11 +60,21 @@ onMounted(() => {
 const main = useMain();
 
 const history = ref<{ [key: string]: TickerHistory[] }>({});
+
+const errorMsg = ref<string | undefined>(undefined);
+
 const fetchHistory = () => {
-    api.get("/stocks/history").then((res) => {
-        const data = res.data;
-        history.value = <{ [key: string]: TickerHistory[] }>data;
-    });
+    api.get("/stocks/history")
+        .then((res) => {
+            const data = res.data;
+            history.value = <{ [key: string]: TickerHistory[] }>data;
+            console.log("oeps");
+        })
+        .catch((err: AxiosError) => {
+            errorMsg.value = `Loading stock history failed with message: ${
+                (err.response?.data as ApiError).detail
+            }`;
+        });
 };
 
 const fetchStats = () => {
