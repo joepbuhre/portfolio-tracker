@@ -25,7 +25,17 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-if="(getRows ?? []).length === 0">
+            <tr v-if="errorMsg">
+                <td :colspan="Object.keys(getHeaders).length" class="m-auto">
+                    <div
+                        class="bg-red-50 p-2 text-center text-sm text-red-800 dark:bg-gray-800 dark:text-red-400"
+                        role="alert"
+                    >
+                        {{ errorMsg }}
+                    </div>
+                </td>
+            </tr>
+            <tr v-else-if="(getRows ?? []).length === 0">
                 <td :colspan="Object.keys(getHeaders).length" class="m-auto">
                     <div
                         class="my-10 flex w-full items-center justify-center gap-3"
@@ -36,6 +46,7 @@
                 </td>
             </tr>
             <slot
+                v-else
                 v-for="row in getRows"
                 name="tr"
                 :value="row"
@@ -79,6 +90,7 @@ const props = withDefaults(
         headers?: Header;
         rows: Row[];
         sortingEnabled?: boolean;
+        errorMsg?: string;
     }>(),
     {
         sortingEnabled: true,
@@ -131,6 +143,4 @@ const formattedValue = (
         return row[key];
     }
 };
-
-onMounted(() => {});
 </script>
