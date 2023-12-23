@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, List
 from pydantic import BaseModel
 
 class StockHistoryFilter(BaseModel):
@@ -6,6 +6,6 @@ class StockHistoryFilter(BaseModel):
     end: Annotated[str, None] = None
 
 class StockHistoryBody(BaseModel):
-    ticker: str
+    ticker: List[str]
     filter: StockHistoryFilter
     save: bool = True

@@ -1,5 +1,6 @@
+from time import sleep
 from typing import Annotated, Union
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 import pandas as pd
 
@@ -22,13 +23,12 @@ def get_all_stocks(userid: Annotated[str, Depends(get_current_user)]):
 def get_history(userid: Annotated[str, Depends(get_current_user)]):
     sm = StockManager(userid)
     hist = sm.get_history()
-
     return hist
 
 
 @router.post('/stocks/set-stock-history')
 def stocks_set_stock_history(body: StockHistoryBody,isowner: Annotated[bool, Depends(is_owner)]):
-    return StockImporter().set_history(ticker=body.ticker, filter=dict(body.filter), save=body.save)
+    return StockImporter('').set_history(ticker=body.ticker, filter=dict(body.filter), save=body.save)
 
 @router.get('/stocks/statistics')
 def stocks_statistics(user: Annotated[str, Depends(get_current_user)]):

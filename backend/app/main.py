@@ -1,8 +1,11 @@
 from typing import Annotated
 from app.routers import importer
+from db_structure import get_db
+from db_structure.model import Base
 from dotenv import load_dotenv
 
 from fastapi import Depends, FastAPI, Header
+import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from utils.logger import get_logger
@@ -47,3 +50,5 @@ async def splash_screen(accept: Annotated[str | None, Header()] = None):
     else:
         # Return JSON response
         return {"message": "Welcome to the splash screen!"}
+
+Base.metadata.create_all(bind=get_db())
