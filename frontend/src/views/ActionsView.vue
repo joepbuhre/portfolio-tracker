@@ -26,20 +26,27 @@
             <input type="text" placeholder="search here" v-model="searchVal" />
         </div>
         <IuTable :rows="stockActionsComputed">
-            <Column column-name="purchase_date" display-name="Purchase Date" />
+            <Column
+                class="w-1/6"
+                column-name="purchase_date"
+                display-name="Purchase Date"
+            />
             <Column
                 column-name="description"
                 display-name="Share"
                 :filter-values="
                     stockActionsComputed.map((el) => el.description)
                 "
+                class="w-3/6"
             />
             <Column
+                class="w-1/6"
                 column-name="ticker"
                 display-name="Ticker"
                 :filter-values="stockActionsComputed.map((el) => el.ticker)"
             />
             <Column
+                class="w-1/6"
                 column-name="home_mutation"
                 display-name="Home Mutation"
                 :formatter="EuroFormatter"

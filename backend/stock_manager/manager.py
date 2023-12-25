@@ -1,7 +1,9 @@
 from os import getenv
 from typing import List, Union
+from app.types.stocks import StockMatchTicker
 
 import pandas as pd
+from sqlalchemy import update
 import yfinance as yf
 
 from sqlalchemy.sql import text
@@ -34,6 +36,14 @@ class StockManager:
                 df = pd.read_sql(stm, con=conn)
 
             return df
+
+    def match_ticker(self, shareid_ticker: List[StockMatchTicker]):
+        with self.db.connect() as conn:
+            for row in shareid_ticker:
+                stmt = update(ShareInfo).where(ShareInfo.id == row.share_id).values(ticker=row.ticker)            
+                conn.execute(stmt)
+            conn.commit()
+            conn.close()
 
     def get_stocks(self, by: Union[List, str] = ['description', 'ticker']) -> pd.DataFrame:
         user_id = self.userid

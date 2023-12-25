@@ -98,13 +98,16 @@ const res = ref<share_info[]>([]);
 
 const changedShares = ref<{ [key: string]: string }>({});
 
-onMounted(() => {
-    api.get("/stocks").then((result) => {
+const getStocks = () => {
+    api.get("/stocks/match-tickers").then((result) => {
         res.value = result.data;
         changedShares.value = Object.fromEntries(
             result.data.map((el: share_info) => [el.id, el.ticker]),
         );
     });
+};
+onMounted(() => {
+    getStocks();
 });
 
 const saveTickers = () => {
@@ -115,12 +118,13 @@ const saveTickers = () => {
         }))
         .filter((el) => el.ticker !== null && el.ticker !== "");
 
-    api.post("/match-ticker", saveObj)
+    api.post("/stocks/match-tickers", saveObj)
         .then((res) => {
+            getStocks();
             alert("saved!");
         })
         .catch((err) => {
-            alert(err.data);
+            alert(err.response.data.detail);
         });
 };
 </script>

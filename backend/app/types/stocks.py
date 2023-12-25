@@ -9,3 +9,7 @@ class StockHistoryBody(BaseModel):
     ticker: List[str]
     filter: StockHistoryFilter
     save: bool = True
+
+class StockMatchTicker(BaseModel):
+    share_id: str
+    ticker: str

@@ -1,5 +1,5 @@
 from time import sleep
-from typing import Annotated, Union
+from typing import Annotated, List, Union
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse
 import pandas as pd
@@ -10,19 +10,24 @@ from stock_importer import StockImporter
 from stock_manager import StockManager
 from tomlkit import boolean
 
-from app.types.stocks import StockHistoryBody
+from app.types.stocks import StockHistoryBody, StockMatchTicker
 
 router = APIRouter()
 
 @router.get('/stocks')
 def get_all_stocks(userid: Annotated[str, Depends(get_current_user)]):
     sm = StockManager(userid)
-    return sm.get_raw_stocks().to_dict(orient='records')
+    return sm.get_stocks().to_dict(orient='records')
 
 @router.get('/stocks/match-tickers')
 def get_all_stocks(user_id: Annotated[str, Depends(get_current_user)], is_owner: Annotated[str, Depends(is_owner)]):
     sm = StockManager(user_id)
     return sm.get_raw_stocks().to_dict(orient='records')
+
+@router.post('/stocks/match-tickers')
+def get_all_stocks(post_object: List[StockMatchTicker] ,user_id: Annotated[str, Depends(get_current_user)], is_owner: Annotated[str, Depends(is_owner)]):
+    sm = StockManager(user_id)
+    return sm.match_ticker(post_object)
 
 @router.get('/stocks/history')
 def get_history(userid: Annotated[str, Depends(get_current_user)]):
