@@ -1,5 +1,5 @@
 from calendar import c
-from sqlalchemy import DECIMAL, VARCHAR, Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String
+from sqlalchemy import DECIMAL, VARCHAR, Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from db_structure import get_db
@@ -56,6 +56,10 @@ class ShareHistory(Base):
     dividends = Column('dividends', DECIMAL(19,4))
     stock_splits = Column('stock_splits', DECIMAL(19,4))
     date = Column('date', DateTime)
+
+    __table_args__ = (
+        UniqueConstraint('share_id', 'date', name='uq_share_id_date'),
+    )
 
 class Config(Base):
     __tablename__ = "config"

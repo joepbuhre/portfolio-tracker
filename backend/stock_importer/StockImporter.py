@@ -19,6 +19,7 @@ from typing import List
 from sqlalchemy.orm import Session
 from datetime import datetime
 from sqlalchemy.dialects import postgresql as pg
+from utils.logger import log
 
 
 class StockImporter:
@@ -338,47 +339,55 @@ where t.max = t.date and ticker = :ticker
 
         return df.to_dict(orient='records')
 
-    def set_history(self, ticker: List[str], save: bool, filter: None | dict) -> list:
+    def set_history(self, ticker: List[str], save: bool, time_period: None | dict) -> list:
         with self.db.connect() as conn:
             # Fetch share ID
-            res = conn.execute(
-                sa.sql.text("""select id from share_info where ticker in :ticker """).bindparams(ticker=tuple(ticker))
+            share_ids = conn.execute(
+                sa.sql.text("""select id, ticker from share_info where ticker in :ticker """).bindparams(ticker=tuple(ticker))
             ).fetchall()
 
             # Raise a notexist exception when share couldn't be found
-            if res == None:
-                raise NotExistException(f'Share "{ticker.join(" ")}" does not exists')
-            share_id = res[0]
+            if share_ids == None:
+                raise NotExistException(f'Share "{" ".join(ticker)}" does not exists')
             
             # Set body params otherwise do defaults
-            filter = {'period': '1d'} if filter == None or len(filter) == 0 else filter
+            time_period = {'period': '1d'} if time_period == None or len(time_period) == 0 else time_period
 
-            tick = yf.Ticker("AMD.AS", self.session)
-            res = tick.history(**filter, repair=True)
+            tickers: yf.Tickers = yf.Tickers(" ".join(ticker), self.session)
+            
+            for tick in tickers.symbols:
+                share_id = list(filter(lambda item: item[1] == tick, share_ids))[0][0]
+                
+                log.debug(f"fetching history of stock [{tick}] with share_id of [{share_id}]")
 
-            res.rename(columns={
-                'open': 'Open',
-                'high': 'High',
-                'low': 'Low',
-                'close': 'Close',
-                'volume': 'Volume'
-            }, inplace=True)
-            # res.columns = ['open', 'high', 'low', 'close', 'volume', 'dividends', 'stock_splits']
+                tick = tickers.tickers[tick]
+                res = tick.history(**time_period)
 
-            res['date'] = res.index
-            res['share_id'] = share_id
-            res = set_uuid(res)
 
-            res = res.to_dict(orient='records') 
+                res.rename(columns={
+                    'Open': ShareHistory.open.name, 
+                    'High': ShareHistory.high.name, 
+                    'Low': ShareHistory.low.name, 
+                    'Close': ShareHistory.close.name, 
+                    'Volume': ShareHistory.volume.name, 
+                    'Dividends': ShareHistory.dividends.name, 
+                    'Stock Splits': ShareHistory.stock_splits.name, 
+                }, inplace=True)
 
-            if save and len(res) > 1:
-                stmt = pg.insert(ShareHistory).values(
-                            res
-                        ).on_conflict_do_nothing(
-                            index_elements=['share_id', 'date']
-                        )
-                conn.execute(stmt)
-                conn.commit()
+                res['date'] = res.index
+                res['share_id'] = share_id
+                res = set_uuid(res)
+
+                res = res.to_dict(orient='records') 
+
+                if save and len(res) > 1:
+                    stmt = pg.insert(ShareHistory).values(
+                                res
+                            ).on_conflict_do_nothing(
+                                index_elements=['share_id', 'date']
+                            )
+                    conn.execute(stmt)
+                    conn.commit()
 
         return res 
 

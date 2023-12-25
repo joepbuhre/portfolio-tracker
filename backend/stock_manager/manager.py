@@ -24,6 +24,17 @@ class StockManager:
 
         return tickers
 
+    def get_raw_stocks(self) -> pd.DataFrame:
+            user_id = self.userid
+
+            with self.db.connect() as conn:
+                stm = text("""
+    select si.*
+    from share_info si """)
+                df = pd.read_sql(stm, con=conn)
+
+            return df
+
     def get_stocks(self, by: Union[List, str] = ['description', 'ticker']) -> pd.DataFrame:
         user_id = self.userid
 
