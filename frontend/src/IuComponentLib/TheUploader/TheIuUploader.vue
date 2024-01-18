@@ -4,7 +4,10 @@
             for="dropzone-file"
             class="dark:hover:bg-bray-800 flex h-64 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:hover:border-gray-500 dark:hover:bg-gray-600"
         >
-            <div class="flex flex-col items-center justify-center pb-6 pt-5">
+            <div
+                v-if="file === null"
+                class="flex flex-col items-center justify-center pb-6 pt-5"
+            >
                 <svg
                     class="mb-4 h-8 w-8 text-gray-500 dark:text-gray-400"
                     aria-hidden="true"
@@ -25,34 +28,53 @@
                     and drop
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                    SVG, PNG, JPG or GIF (MAX. 800x400px)
+                    Accounts.csv
                 </p>
             </div>
+            <div v-else class="m-auto text-center">
+                <div>{{ file?.name }}</div>
+                <button
+                    class="button today-btn !bg-primary-700 dark:!bg-primary-600 hover:!bg-primary-800 dark:hover:!bg-primary-700 focus:!ring-primary-300 mt-2 rounded-lg bg-blue-700 px-3 py-1 text-center text-sm font-medium text-white hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700"
+                    @click="emits('upload', file)"
+                >
+                    Upload
+                </button>
+            </div>
+            <!-- <span >
+                {{ file.name }}
+                {{ file.type }}
+                {{ DateFormatter.format(new Date(file.lastModified)) }}
+            </span> -->
+
             <input
                 id="dropzone-file"
                 type="file"
                 class="hidden"
-                @change="handelFile"
+                @change="handleFile"
             />
         </label>
     </div>
 </template>
 
 <script setup lang="ts">
+import { DateFormatter } from "@src/utils/formatters";
+import { ref } from "vue";
+
 const emits = defineEmits<{
     (e: "upload", value: File): void;
 }>();
 
-const handelFile = (e: Event) => {
+const file = ref<null | File>(null);
+
+const handleFile = (e: Event) => {
     const target = e.target as HTMLInputElement;
-    let file: File | null = null;
 
     if (target?.files?.length && target?.files?.length > 0) {
-        file = target.files[0];
+        file.value = target.files[0];
     }
 
-    if (file !== null) {
-        emits("upload", file);
-    }
+    // if (file.value !== null) {
+    //     emits("upload", file.value);
+    // }
 };
 </script>

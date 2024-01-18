@@ -1,5 +1,5 @@
 from calendar import c
-from sqlalchemy import DECIMAL, VARCHAR, Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import DECIMAL, VARCHAR, Boolean, Column, Connection, Date, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from db_structure import get_db
@@ -33,9 +33,10 @@ class ShareActions(Base):
     hash = Column(Numeric, unique=True)
     quantity = Column(DECIMAL(19,4), nullable=True)
     share_price = Column(DECIMAL(19,4), nullable=True)
-    testCol = Column(Numeric)
-
-
+    __table_args__ = (
+        UniqueConstraint('purchase_date', 'share_id', 'isin', 'action', 'order_id', name='uq_purchase_date_share_id_isin_description_order_id'),
+    )
+    
 class ShareInfo(Base):
     __tablename__ = "share_info"
     id = Column('id', VARCHAR(256), primary_key=True)
@@ -43,6 +44,9 @@ class ShareInfo(Base):
     description = Column('description', VARCHAR(256))
     market = Column('market', VARCHAR(256))
     ticker = Column('ticker', VARCHAR(256))
+    __table_args__ = (
+        UniqueConstraint('isin', name='uq_isin'),
+    )
 
 class ShareHistory(Base):
     __tablename__ = "share_history"
@@ -55,8 +59,8 @@ class ShareHistory(Base):
     volume = Column('volume', DECIMAL(19,4))
     dividends = Column('dividends', DECIMAL(19,4))
     stock_splits = Column('stock_splits', DECIMAL(19,4))
-    date = Column('date', DateTime)
-
+    date = Column('date', DateTime(timezone=True))
+    capital_gains = Column('capital_gains', DECIMAL(19,4))
     __table_args__ = (
         UniqueConstraint('share_id', 'date', name='uq_share_id_date'),
     )

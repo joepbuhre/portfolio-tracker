@@ -25,26 +25,36 @@
             </tr>
         </thead>
         <tbody>
-            <tr v-if="errorMsg">
-                <td :colspan="Object.keys(getHeaders).length" class="m-auto">
-                    <div
-                        class="bg-red-50 p-2 text-center text-sm text-red-800 dark:bg-gray-800 dark:text-red-400"
-                        role="alert"
+            <slot v-if="compErrorMsg" name="error">
+                <tr>
+                    <td
+                        :colspan="Object.keys(getHeaders).length"
+                        class="m-auto"
                     >
-                        {{ errorMsg }}
-                    </div>
-                </td>
-            </tr>
-            <tr v-else-if="(getRows ?? []).length === 0">
-                <td :colspan="Object.keys(getHeaders).length" class="m-auto">
-                    <div
-                        class="my-10 flex w-full items-center justify-center gap-3"
+                        <div
+                            class="bg-red-50 p-2 text-center text-sm text-red-800 dark:bg-gray-800 dark:text-red-400"
+                            role="alert"
+                        >
+                            {{ errorMsg }}
+                        </div>
+                    </td>
+                </tr>
+            </slot>
+            <slot v-else-if="(getRows ?? []).length === 0" name="loading">
+                <tr>
+                    <td
+                        :colspan="Object.keys(getHeaders).length"
+                        class="m-auto"
                     >
-                        <Loader2Icon class="animate-spin" />
-                        Loading ...
-                    </div>
-                </td>
-            </tr>
+                        <div
+                            class="my-10 flex w-full items-center justify-center gap-3"
+                        >
+                            <Loader2Icon class="animate-spin" />
+                            Loading ...
+                        </div>
+                    </td>
+                </tr>
+            </slot>
             <slot
                 v-else
                 v-for="row in getRows"
@@ -84,6 +94,7 @@ import TheSorting from "./TheSorting.vue";
 import TheColumn from "./TheColumn.vue";
 import { filterFunction } from "./filtering";
 import { Loader2Icon } from "lucide-vue-next";
+import axios from "axios";
 
 const props = withDefaults(
     defineProps<{
@@ -91,6 +102,7 @@ const props = withDefaults(
         rows: Row[];
         sortingEnabled?: boolean;
         errorMsg?: string;
+        axiosInstance?: ReturnType<typeof axios.get>;
     }>(),
     {
         sortingEnabled: true,
@@ -143,4 +155,31 @@ const formattedValue = (
         return row[key];
     }
 };
+
+const errorMsg = ref<string>("");
+const compErrorMsg = computed(() => {
+    if (props.errorMsg) {
+        return errorMsg;
+    } else if (errorMsg.value) {
+        return errorMsg.value;
+    } else {
+        return undefined;
+    }
+});
+
+onMounted(() => {
+    // if (props.axiosInstance) {
+    //     let api = props.axiosInstance;
+    //     api.interceptors.response.use(
+    //         (onFulfilled) => {
+    //             console.log(onFulfilled.status);
+    //             return onFulfilled;
+    //         },
+    //         (onRejected: AxiosError) => {
+    //             errorMsg.value = onRejected.message;
+    //             return Promise.reject(onRejected);
+    //         },
+    //     );
+    // }
+});
 </script>

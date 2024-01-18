@@ -8,9 +8,9 @@ from app.dependencies import get_current_user, is_owner
 from stock_importer import StockImporter
 
 from stock_manager import StockManager
-from tomlkit import boolean
 
 from app.types.stocks import StockHistoryBody, StockMatchTicker
+from stock_manager.analysis import StockAnalysis
 
 router = APIRouter()
 
@@ -18,6 +18,17 @@ router = APIRouter()
 def get_all_stocks(userid: Annotated[str, Depends(get_current_user)]):
     sm = StockManager(userid)
     return sm.get_stocks().to_dict(orient='records')
+
+@router.get('/stocks/total-value')
+def stocks_get_total_value(userid: Annotated[str, Depends(get_current_user)]):
+    sa = StockAnalysis(userid)
+    return sa.total_value_over_time().groupby('date')['total_value'].sum().reset_index().to_dict(orient='records')
+
+@router.get('/stocks/dashboard-stats')
+def stocks_dashboard_stats(userid: Annotated[str, Depends(get_current_user)]):
+    sm = StockAnalysis(userid)
+    return sm.xirr_test()
+    
 
 @router.get('/stocks/match-tickers')
 def get_all_stocks(user_id: Annotated[str, Depends(get_current_user)], is_owner: Annotated[str, Depends(is_owner)]):

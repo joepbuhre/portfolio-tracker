@@ -8,3 +8,7 @@ serve:
 	docker run --rm -it --env-file .env -p 5000:5000 portfolio-tracker 
 dramatiq:
 	dramatiq tasks
+upgrade:
+	alembic upgrade head
+migration:
+	@echo alembic revision --autogenerate -m "<your message here>"

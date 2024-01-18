@@ -4,9 +4,9 @@
         <PrestationCard v-for="card in cards" class="w-1/4" v-bind="card" />
     </div>
     <div class="my-8">
-        <GraphLine
-            :history="history"
-            v-if="history && Object.keys(history).length > 0"
+        <GraphTotalValue
+            :history="history_value"
+            v-if="history_value && Object.keys(history_value).length > 0"
         />
     </div>
     <div></div>
@@ -15,6 +15,7 @@
             <IuTable
                 :rows="stocks"
                 :error-msg="errorMsg"
+                :axios-instance="api"
                 :headers="{
                     description: {
                         name: 'Description',
@@ -46,39 +47,37 @@ import PrestationCard, {
 import { useMain } from "../store/main";
 import { api } from "../utils/api";
 import { EuroFormatter, PercentageFormatter } from "../utils/formatters";
-import type { TickerHistory } from "@components/GraphLine.vue";
-import GraphLine from "@components/GraphLine.vue";
+import type { TickerTotalValue } from "@components/GraphTotalValue.vue";
+import GraphTotalValue from "@components/GraphTotalValue.vue";
 import { IuTable } from "@IuComponentLib/TheTable";
 import { AxiosError } from "axios";
 
 onMounted(() => {
-    fetchHistory();
+    fetchHistoryValue();
     fetchStocks();
+    fetchStats();
 });
 
 // Store setup
 const main = useMain();
 
-const history = ref<{ [key: string]: TickerHistory[] }>({});
-
 const errorMsg = ref<string | undefined>(undefined);
 
-const fetchHistory = () => {
-    api.get("/stocks/history")
-        .then((res) => {
-            const data = res.data;
-            history.value = <{ [key: string]: TickerHistory[] }>data;
-            console.log("oeps");
-        })
-        .catch((err: AxiosError) => {
-            errorMsg.value = `Loading stock history failed with message: ${
-                (err.response?.data as ApiError).detail
-            }`;
-        });
-};
+// const fetchHistory = () => {
+//     api.get("/stocks/history")
+//         .then((res) => {
+//             const data = res.data;
+//             history.value = <{ [key: string]: TickerHistory[] }>data;
+//             console.log("oeps");
+//         })
+//         .catch((err: AxiosError) => {});
+// };
 
+const stats = ref<null | DashboardStats>(null);
 const fetchStats = () => {
-    api.get("/stocks/stats").then((res) => {});
+    api.get("/stocks/dashboard-stats").then((res) => {
+        stats.value = res.data;
+    });
 };
 
 interface stocks {
@@ -89,6 +88,21 @@ interface stocks {
     percentage: number;
 }
 
+interface DashboardStats {
+    total_value: number;
+    xirr: number;
+    dividend: number;
+    total_cost: number;
+    value_change: number;
+}
+
+const history_value = ref<TickerTotalValue[]>([]);
+const fetchHistoryValue = () => {
+    api.get("/stocks/total-value").then((res) => {
+        history_value.value = res.data;
+    });
+};
+
 const stocks = ref<stocks[]>([]);
 const fetchStocks = () => {
     api.get("/stocks").then((res) => {
@@ -96,32 +110,45 @@ const fetchStocks = () => {
     });
 };
 
+const currentValue = computed(() => {
+    return stocks.value.reduce((accumulator, currentValue) => {
+        return accumulator + currentValue.totalValue;
+    }, 0);
+});
+
 const cards = computed((): PrestationCardProps[] => [
     {
         title: "Total Value",
-        currentValue: stocks.value.reduce((accumulator, currentValue) => {
-            return accumulator + currentValue.totalValue;
-        }, 0),
+        currentValue: currentValue.value,
         currentValueFormat: EuroFormatter,
-        differenceValue: -11.8 / 100,
+        differenceValue: stats.value?.xirr ?? 0,
         differenceValueFormat: PercentageFormatter,
     },
     {
-        title: "Profit",
-        currentValue: 0,
+        title: "Value change",
+        currentValue: stats.value?.value_change ?? 0,
         currentValueFormat: EuroFormatter,
-        differenceValue: 0,
+        differenceValue:
+            currentValue.value /
+                (currentValue.value - (stats.value?.value_change ?? 0)) -
+            1,
+        differenceValueFormat: PercentageFormatter,
+    },
+    {
+        title: "Yield",
+        currentValue: stats.value?.xirr ?? 0,
+        currentValueFormat: PercentageFormatter,
     },
     {
         title: "Dividend",
-        currentValue: 40,
+        currentValue: stats.value?.dividend ?? 0,
         currentValueFormat: EuroFormatter,
         differenceValue: 10 / 100,
         differenceValueFormat: PercentageFormatter,
     },
     {
         title: "Total Cost",
-        currentValue: 10.9,
+        currentValue: -(stats.value?.total_cost ?? 0),
         currentValueFormat: EuroFormatter,
         differenceValue: -11.8 / 100,
         differenceValueFormat: PercentageFormatter,

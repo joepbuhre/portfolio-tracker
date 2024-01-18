@@ -51,6 +51,8 @@ import { useMain } from "../store/main";
 import { api } from "../utils/api";
 import { Eye, EyeOffIcon, X } from "lucide-vue-next";
 import { TheModal } from "@IuComponentLib/TheModal";
+import { useNotifications } from "@src/store/notifications";
+import { NotificationType } from "@src/enums/Notification";
 
 const main = useMain();
 
@@ -63,6 +65,8 @@ const emits = defineEmits<{
 // Handle account here
 const accountNumber = ref<string | null>(null);
 const showAccountId = ref<boolean>(false);
+
+const not = useNotifications();
 
 const toggleShowAccountId = () => (showAccountId.value = !showAccountId.value);
 
@@ -89,7 +93,10 @@ const login = () => {
             emits("success", true);
         })
         .catch((err) => {
-            // TODO Error
+            not.add(
+                "Something went wrong with logging in",
+                NotificationType.Error,
+            );
         });
 };
 

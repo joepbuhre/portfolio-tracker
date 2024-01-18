@@ -51,4 +51,5 @@ async def splash_screen(accept: Annotated[str | None, Header()] = None):
         # Return JSON response
         return {"message": "Welcome to the splash screen!"}
 
+
 Base.metadata.create_all(bind=get_db())

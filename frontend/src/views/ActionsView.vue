@@ -15,11 +15,11 @@
                 :show="showFileUpload"
                 @hide="showFileUpload = false"
             >
-                <div class="w-full text-center" v-if="uploading">
+                <div class="w-full text-center" v-show="uploading">
                     <h3>Uploading file...</h3>
                     <Loader2Icon class="m-auto animate-spin" />
                 </div>
-                <TheIuUploader v-else @upload="uploadFile" />
+                <TheIuUploader v-show="!uploading" @upload="uploadFile" />
             </TheModal>
         </div>
         <div>
@@ -62,6 +62,10 @@ import { computed, onMounted, ref } from "vue";
 import { DateFormatter, EuroFormatter } from "@src/utils/formatters";
 import { TheIuUploader } from "@IuComponentLib/TheUploader";
 import { Loader2Icon } from "lucide-vue-next";
+import { useNotifications } from "@src/store/notifications";
+import { NotificationType } from "@src/enums/Notification";
+
+const not = useNotifications();
 
 const stockActions = ref<StockActions[]>([]);
 
@@ -100,7 +104,7 @@ const uploadFile = (file: File) => {
             showFileUpload.value = false;
         })
         .catch((err) => {
-            // TODO
+            not.add("Something went wrong", NotificationType.Error);
         })
         .finally(() => {
             uploading.value = false;

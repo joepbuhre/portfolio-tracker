@@ -114,7 +114,7 @@ class StockImporter:
             df.drop(columns=['date', 'time'], inplace=True)
 
 
-            df['action'] = df['description'].apply(lambda x: categorize_transaction(x))
+            df['action'] = df['description'].astype(str).apply(lambda x: categorize_transaction(x))
 
             df = df.replace({np.nan: None})
 
@@ -224,7 +224,6 @@ group by si.id, si.isin, si.description,si.market, si.ticker
                 df3 = pd.merge(df, pd.DataFrame(res).loc[:, ['isin', 'id']], how='left', left_on=['isin'], right_on=['isin'])
                 df3['share_id'] = df3['id']
                 df3['user_id'] = userid
-                df3 = set_hash(df3)
                 df3 = set_uuid(df3)
                 df3 = extract_description(df3)
                 df3 = df3.replace({np.nan: None})
@@ -232,10 +231,10 @@ group by si.id, si.isin, si.description,si.market, si.ticker
 
                 # df3 = df3.loc[:, [ 'id', 'share_id', 'order_id', 'user_id', 'count' ]]
                 
-                df3 = df3.loc[:, ['id','user_id','share_id','purchase_date','currency_date','product','fxrate','isin','mutation_currency','mutation','order_id','action','hash','quantity','share_price']]
+                df3 = df3.loc[:, ['id','user_id','share_id','purchase_date','currency_date','product','fxrate','isin','mutation_currency','mutation','order_id','action','quantity','share_price']]
                 
                 stmt = insert(ShareActions).values(df3.to_dict(orient='records')).on_conflict_do_nothing(
-                    index_elements=['hash']
+                    index_elements=['purchase_date', 'share_id', 'isin', 'action', 'order_id']
                 )
                 conn.execute(stmt)
                 conn.commit()
@@ -339,11 +338,11 @@ where t.max = t.date and ticker = :ticker
 
         return df.to_dict(orient='records')
 
-    def set_history(self, ticker: List[str], save: bool, time_period: None | dict) -> list:
+    def set_history(self, ticker: List[str] | bool, save: bool, time_period: None | dict) -> list:
         with self.db.connect() as conn:
             # Fetch share ID
             share_ids = conn.execute(
-                sa.sql.text("""select id, ticker from share_info where ticker in :ticker """).bindparams(ticker=tuple(ticker))
+                sa.sql.text("""select id, ticker from share_info where ticker is not null """) if type(ticker) == bool and ticker == True else sa.sql.text("""select id, ticker from share_info where ticker is not null and ticker in :ticker """).bindparams(ticker=tuple(ticker))
             ).fetchall()
 
             # Raise a notexist exception when share couldn't be found
@@ -353,7 +352,7 @@ where t.max = t.date and ticker = :ticker
             # Set body params otherwise do defaults
             time_period = {'period': '1d'} if time_period == None or len(time_period) == 0 else time_period
 
-            tickers: yf.Tickers = yf.Tickers(" ".join(ticker), self.session)
+            tickers = yf.Tickers(" ".join(list(map(lambda x: x[1], share_ids))), self.session)
             
             for tick in tickers.symbols:
                 share_id = list(filter(lambda item: item[1] == tick, share_ids))[0][0]
@@ -363,7 +362,6 @@ where t.max = t.date and ticker = :ticker
                 tick = tickers.tickers[tick]
                 res = tick.history(**time_period)
 
-
                 res.rename(columns={
                     'Open': ShareHistory.open.name, 
                     'High': ShareHistory.high.name, 
@@ -372,6 +370,7 @@ where t.max = t.date and ticker = :ticker
                     'Volume': ShareHistory.volume.name, 
                     'Dividends': ShareHistory.dividends.name, 
                     'Stock Splits': ShareHistory.stock_splits.name, 
+                    'Capital Gains': ShareHistory.capital_gains.name
                 }, inplace=True)
 
                 res['date'] = res.index
@@ -383,8 +382,19 @@ where t.max = t.date and ticker = :ticker
                 if save and len(res) > 1:
                     stmt = pg.insert(ShareHistory).values(
                                 res
-                            ).on_conflict_do_nothing(
-                                index_elements=['share_id', 'date']
+                            )
+                    stmt = stmt.on_conflict_do_update(
+                                index_elements=['share_id', 'date'],
+                                set_={
+                                    ShareHistory.open.name: stmt.excluded.open,
+                                    ShareHistory.close.name: stmt.excluded.close,
+                                    ShareHistory.low.name: stmt.excluded.low,
+                                    ShareHistory.high.name: stmt.excluded.high,
+                                    ShareHistory.volume.name: stmt.excluded.volume,
+                                    ShareHistory.dividends.name: stmt.excluded.dividends,
+                                    ShareHistory.stock_splits.name: stmt.excluded.stock_splits,
+                                    ShareHistory.capital_gains.name: stmt.excluded.capital_gains,
+                                }
                             )
                     conn.execute(stmt)
                     conn.commit()

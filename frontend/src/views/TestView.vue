@@ -2,11 +2,29 @@
     <!-- <TheTimeLine>
         
     </TheTimeLine>     -->
-    <IuTable :rows="getRows" :headers="getHeaders">
+    <IuTable
+        :rows="data"
+        :headers="headers"
+        :axios-key="'test1'"
+        :axios-instance="test"
+    >
         <Column
-            v-for="(display, key) of getHeaders"
+            v-for="(display, key) of headers"
             :display-name="display.name"
-            :column-name="key"
+            :column-name="display.name"
+            sorting-enabled
+        />
+    </IuTable>
+    <IuTable
+        :rows="data2"
+        :headers="headers2"
+        :axios-key="'test2'"
+        :axios-instance="api"
+    >
+        <Column
+            v-for="(display, key) of headers2"
+            :display-name="display.name"
+            :column-name="display.name"
             sorting-enabled
         />
     </IuTable>
@@ -14,73 +32,61 @@
 
 <script setup lang="ts">
 import { Column, IuTable } from "@IuComponentLib/TheTable";
+import { Header, HeaderValues } from "@IuComponentLib/TheTable/types";
 import TheTimeLine from "@components/TheTimeLine.vue";
-import { computed } from "vue";
+import { api } from "@src/utils/api";
+import { Axios } from "axios";
+import { computed, onMounted, ref } from "vue";
 
-const getHeaders = {
-    description: { name: "Description" },
-    ticker: { name: "Ticker" },
-    totalValue: { name: "Portfolio gewicht" },
-    quantity: { name: "Quantity" },
-    percentage: { name: "Percentage" },
-};
+// https://jsonplaceholder.typicode.com/posts
 
-const getRows = computed(() => [
-    {
-        description: "ABN AMRO GROUP",
-        ticker: "ABN.AS",
-        totalValue: 123.7,
-        quantity: 10.0,
-        percentage: 0.0386,
-    },
-    {
-        description: "ADVANCED MICRO DEVICES",
-        ticker: "AMD",
-        totalValue: 668.6926,
-        quantity: 6.0,
-        percentage: 0.2086,
-    },
-    {
-        description: "AMAZON.COM INC. - COM",
-        ticker: "AMZN",
-        totalValue: 539.9559,
-        quantity: 4.0,
-        percentage: 0.1684,
-    },
-    {
-        description: "APPLE INC. - COMMON ST",
-        ticker: "AAPL",
-        totalValue: 526.7352,
-        quantity: 3.0,
-        percentage: 0.1643,
-    },
-    {
-        description: "ING GROEP N.V.",
-        ticker: "INGA.AS",
-        totalValue: 141.702,
-        quantity: 11.0,
-        percentage: 0.0442,
-    },
-    {
-        description: "PRYSMIAN",
-        ticker: "PRY.MI",
-        totalValue: 182.5,
-        quantity: 5.0,
-        percentage: 0.0569,
-    },
-    {
-        description: "VANECK MORNINGSTAR DEVELOPED MARKETS DIVIDEND LEADER...",
-        ticker: "TDIV.AS",
-        totalValue: 388.575,
-        quantity: 11.0,
-        percentage: 0.1212,
-    },
-    {
-        description: "VANGUARD S&P500",
-        ticker: "VUSA.AS",
-        totalValue: 633.704,
-        quantity: 8.0,
-        percentage: 0.1977,
-    },
-]);
+const data = ref<any>([]);
+
+const headers = computed((): Header => {
+    return data.value.length > 0
+        ? Object.fromEntries(
+              Object.keys(data.value[0]).map((el) => {
+                  return [
+                      el,
+                      {
+                          name: el,
+                      },
+                  ];
+              }),
+          )
+        : {};
+});
+const data2 = ref<any>([]);
+
+const headers2 = computed((): Header => {
+    return data2.value.length > 0
+        ? Object.fromEntries(
+              Object.keys(data2.value[0]).map((el) => {
+                  return [
+                      el,
+                      {
+                          name: el,
+                      },
+                  ];
+              }),
+          )
+        : {};
+});
+
+type TestType = ReturnType<typeof api.get>;
+const test = ref<TestType | undefined>(undefined);
+onMounted(() => {
+    test.value = api
+        .get("https://jsonplaceholder.typicode.com/posts")
+        .then((res) => {
+            data.value = res.data;
+        })
+        .catch((err) => {});
+
+    api.get("https://jsonplaceholder.typicode.com/todfsfaddos")
+        .then((res) => {
+            data2.value = res.data;
+        })
+        .catch((err) => {});
+});
 </script>

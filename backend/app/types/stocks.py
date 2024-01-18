@@ -6,7 +6,7 @@ class StockHistoryFilter(BaseModel):
     end: Annotated[str, None] = None
 
 class StockHistoryBody(BaseModel):
-    ticker: List[str]
+    ticker: List[str] | bool
     filter: StockHistoryFilter
     save: bool = True
 
